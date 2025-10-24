@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PGVERT</title>
+<meta property="og:title" content="PGVERT">
+<meta name="description" content="PGVERT — Paint + Glue CGE Fusion variant with mini TV channels and music player">
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg1:#000;
+    --bg2:#111;
+    --text:#fff;
+    --accent:#ff00ff;
+    --tv-frame:#1f1f1f;
+    --ear-size:44px;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));font-family:monospace;color:var(--text);overflow:hidden}
+  main{position:relative;height:100vh;display:flex;align-items:center;justify-content:center}
+  canvas#sceneCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+
+  /* P+G glitch title (keeps vibe) */
+  .glitch {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: clamp(36px, 10vw, 160px);
+    letter-spacing:.12em;
+    font-weight:900;
+    z-index:6;
+    pointer-events:none;
+    text-transform:uppercase;
+  }
+  .glitch::before,.glitch::after{
+    content:attr(data-text);
+    position:absolute;left:0;top:0;width:100%;
+  }
+  .glitch::before{color:#ff003c;mix-blend-mode:screen;transform:translate(2px,-1px);opacity:.9;filter:blur(.4px)}
+  .glitch::after{color:#00f0ff;mix-blend-mode:screen;transform:translate(-2px,1px);opacity:.9;filter:blur(.6px)}
+  .glitch span{color:var(--text);text-shadow:0 0 18px var(--accent)}
+
+  /* top controls (NXT + ear) */
+  .ui-top {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    pointer-events:auto;
+  }
+
+  .nxt-btn {
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.12);
+    color:var(--text);
+    padding:8px 12px;
+    font-family:monospace;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    cursor:pointer;
+    border-radius:6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    transition:transform .12s ease, background .12s ease;
+    z-index:20;
+  }
+  .nxt-btn:hover{transform:translateY(-3px); background: rgba(255,255,255,0.04); color:#000}
+
+  /* ear icon */
+  .ear-btn {
+    width: var(--ear-size);
+    height: var(--ear-size);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.12);
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
+    cursor:pointer;
+    transition: transform .12s ease, box-shadow .18s ease;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  }
+  .ear-btn:hover{transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.75)}
+
+  /* ear svg effects like P/G */
+  .ear-glow{
+    filter: drop-shadow(0 0 6px var(--accent));
+    mix-blend-mode:screen;
+  }
+  .ear-flicker{
+    animation: earFlick 2.2s infinite ease-in-out;
+  }
+  @keyframes earFlick{
+    0%,20%,40%,100%{opacity:1; transform: none}
+    10%{opacity:.6; transform: translateY(-1px) skewX(.5deg)}
+    30%{opacity:.8; transform: translateY(1px) skewX(-.5deg)}
+  }
+
+  /* TV container (bottom center) */
+  .tv-holder {
+    position: fixed;
+    left:50%;
+    transform: translateX(-50%);
+    bottom: 14px;
+    z-index:18;
+    pointer-events:auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* 3D TV overlay frame for fallback UI (not used for 3D but keeps style in case) */
+  .tv-fallback {
+    width:380px;
+    height:220px;
+    background:var(--tv-frame);
+    border-radius:4px;
+    padding:8px;
+    box-sizing:border-box;
+    display:none;
+  }
+
+  /* small accessibility hint */
+  .hint {
+    position: fixed;
+    right:14px;
+    bottom:14px;
+    z-index:15;
+    color:rgba(255,255,255,0.5);
+    font-size:12px;
+    font-family:monospace;
+    pointer-events:none;
+  }
+
+  /* small responsive adjustments */
+  @media(max-width:640px){
+    .nxt-btn{padding:7px 10px;font-size:0.85rem}
+    .ear-btn{width:38px;height:38px}
+  }
+
+</style>
+
+<!-- Three.js + postprocessing (from CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+</head>
+<body>
+  <main>
+    <canvas id="sceneCanvas" aria-hidden="true"></canvas>
+    <div class="glitch" data-text="PG"><span>P+G</span></div>
+
+    <!-- Top UI: NXT and Ear -->
+    <div class="ui-top">
+      <button id="nxtBtn" class="nxt-btn" title="Next song">NXT</button>
+      <div id="earBtn" class="ear-btn" aria-label="Enable audio" title="Tap to enable audio">
+        <!-- Ear SVG styled to match P/G look -->
+        <svg class="ear-glow ear-flicker" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3c-3.5 0-6 3-6 6v1a6 6 0 0 1-2 4.5" opacity="0.9"></path>
+          <path d="M9 21a3 3 0 0 0 6 0" opacity="0.9"></path>
+          <path d="M16 10c0 2-1 3-1 3" opacity="0.9"></path>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 3D-TV placement -->
+    <div class="tv-holder" id="tvHolder" aria-hidden="true">
+      <!-- fallback frame for non-3D viewers (hidden by default) -->
+      <div class="tv-fallback" id="tvFallback" aria-hidden="true">
+        <!-- kept empty unless needed -->
+      </div>
+    </div>
+
+    <div class="hint">PGVERT — tap ear to enable audio (if needed)</div>
+  </main>
+
+<script>
+/* ============================
+  Media lists (update paths if needed)
+   - videos in assets/videos/
+   - songs in assets/songs/
+   Keep names exactly or update arrays.
+   ============================ */
+const videoSources = [
+  'assets/videos/My Movie 54.mov',
+  'assets/videos/IMG_3838.MOV',
+  'assets/videos/MoshUp_0021~2.mp4'
+];
+
+const songList = [
+  'assets/songs/Frtruck.m4a',
+  'assets/songs/Bleep.m4a',
+  'assets/songs/FB Remix.m4a',
+  'assets/songs/BM AM & PM.m4a',
+  'assets/songs/Biebs in the Glue .m4a',
+  'assets/songs/LilSkTCh2.m4a',
+  'assets/songs/G U L P.m4a'
+];
+
+/* ============================
+   Global UI Elements
+   ============================ */
+const nxtBtn = document.getElementById('nxtBtn');
+const earBtn = document.getElementById('earBtn');
+const tvHolder = document.getElementById('tvHolder');
+const sceneCanvas = document.getElementById('sceneCanvas');
+
+/* ============================
+   Audio player setup
+   ============================ */
+let currentSongIdx = 0;
+let audio = new Audio();
+audio.src = songList[currentSongIdx];
+audio.volume = 0.86;
+audio.loop = false;
+audio.preload = 'auto';
+
+function playSongIndex(i){
+  currentSongIdx = (i + songList.length) % songList.length;
+  audio.pause();
+  audio = new Audio(songList[currentSongIdx]);
+  audio.volume = 0.86;
+  audio.preload = 'auto';
+  audio.addEventListener('ended', () => { playSongIndex(currentSongIdx + 1); });
+  audio.play().catch(()=>{/* autoplay blocked; user must interact */});
+  // hide ear when playing
+  setTimeout(()=> { if(!audio.paused) hideEar(); }, 250);
+}
+
+function nextSong(){
+  playSongIndex(currentSongIdx + 1);
+}
+nxtBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  nextSong();
+  triggerTVGlitchShort();
+});
+
+/* ear tap to enable audio */
+function showEar(){
+  earBtn.style.display = 'flex';
+}
+function hideEar(){
+  earBtn.style.display = 'none';
+}
+earBtn.addEventListener('click', async (e)=>{
+  e.stopPropagation();
+  try {
+    await audio.play();
+    hideEar();
+  } catch (err) {
+    // try starting current song explicitly
+    playSongIndex(currentSongIdx);
+    hideEar();
+  }
+});
+
+/* attempt autoplay after 1s, otherwise ear remains */
+setTimeout(async ()=> {
+  try {
+    await audio.play();
+    hideEar();
+  } catch (err) {
+    showEar();
+  }
+}, 1000);
+
+/* clicking anywhere should try to unlock too (one-time)
+   but we respect the ear aesthetic — only attempt and hide once */
+let unlockDone = false;
+function oneTimeUnlock(){
+  if(unlockDone) return;
+  unlockDone = true;
+  audio.play().then(()=> hideEar()).catch(()=> showEar());
+  window.removeEventListener('pointerdown', oneTimeUnlock);
+  window.removeEventListener('keydown', oneTimeUnlock);
+}
+window.addEventListener('pointerdown', oneTimeUnlock, { once: true });
+window.addEventListener('keydown', oneTimeUnlock, { once: true });
+
+/* ============================
+   Three.js scene + 3D TV with video texture
+   ============================ */
+
+let scene, camera, renderer, composer, clock;
+let tvMesh, screenMaterial, bloomPass;
+let videoElements = [];
+let currentChannel = 0;
+let videoTexture;
+let tvGroup;
+
+initScene();
+animate();
+
+function initScene(){
+  const W = window.innerWidth, H = window.innerHeight;
+  clock = new THREE.Clock();
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({canvas: sceneCanvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.setSize(W,H);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  // Scene
+  scene = new THREE.Scene();
+
+  // Camera
+  camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 2000);
+  camera.position.set(0, 2.2, 6);
+  scene.add(camera);
+
+  // subtle environment light
+  const amb = new THREE.AmbientLight(0xffffff, 0.25);
+  scene.add(amb);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(5,10,7);
+  scene.add(dir);
+
+  // floor plane (soft)
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(40,40),
+    new THREE.MeshStandardMaterial({color:0x060606, metalness:0.2, roughness:0.8})
+  );
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -2;
+  scene.add(floor);
+
+  // Add a simple stylized 'TV' 3D object (box + screen)
+  tvGroup = new THREE.Group();
+
+  // TV body
+  const bodyGeo = new THREE.BoxGeometry(3.2,1.85,1.25); // chunky, squarish
+  const bodyMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, metalness:0.2, roughness:0.35});
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.set(0, -0.4, 0);
+  tvGroup.add(body);
+
+  // Screen geometry (slightly inset)
+  const screenGeo = new THREE.PlaneGeometry(2.4,1.2);
+  // We'll create a placeholder HTMLVideoElement and texture below
+  // material uses emissive to glow under bloom
+  screenMaterial = new THREE.MeshBasicMaterial({color:0x000000});
+  const screen = new THREE.Mesh(screenGeo, screenMaterial);
+  screen.position.set(0, -0.35, 0.64); // front face
+  tvGroup.add(screen);
+
+  // small plastic bezel
+  const bezelGeo = new THREE.BoxGeometry(2.6,1.35,0.07);
+  const bezelMat = new THREE.MeshStandardMaterial({color:0x0d0d0d, metalness:0.1, roughness:0.3});
+  const bezel = new THREE.Mesh(bezelGeo, bezelMat);
+  bezel.position.set(0, -0.35, 0.6);
+  tvGroup.add(bezel);
+
+  // TV sits slightly in front of camera area, bottom-centered
+  tvGroup.position.set(0, -0.8, 0);
+  tvGroup.rotation.y = 0.04;
+  scene.add(tvGroup);
+
+  // small ambient accent light behind screen for glow
+  const screenLight = new THREE.RectAreaLight(0xff88ee, 1.2, 1.6, 0.8);
+  screenLight.position.set(0, -0.35, 0.66);
+  scene.add(screenLight);
+
+  // create video HTML elements for each channel and textures
+  for(let s of videoSources){
+    const v = document.createElement('video');
+    v.src = s;
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.crossOrigin = 'anonymous';
+    v.preload = 'auto';
+    // don't autoplay on heavy devices; we'll trigger play when ready
+    videoElements.push(v);
+  }
+  // create texture from first video
+  videoTexture = new THREE.VideoTexture(videoElements[0]);
+  videoTexture.minFilter = THREE.LinearFilter;
+  videoTexture.magFilter = THREE.LinearFilter;
+  videoTexture.format = THREE.RGBFormat;
+  videoTexture.encoding = THREE.sRGBEncoding;
+
+  screenMaterial.map = videoTexture;
+  screenMaterial.emissive = new THREE.Color(0xddddff);
+  screenMaterial.emissiveIntensity = 0.9;
+
+  // Add slight rim light on TV body
+  const rimMat = new THREE.MeshStandardMaterial({color:0x222222, metalness:0.6, roughness:0.4});
+  // (we used bodyMat earlier; it's fine)
+
+  // OrbitControls for debug (disabled by default); small autorotation
+  // const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  // controls.enabled = false;
+
+  // Postprocessing (bloom)
+  const renderScene = new THREE.RenderPass(scene, camera);
+  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 0.6, 0.6, 0.6);
+  bloomPass.threshold = 0.15;
+  bloomPass.strength = 0.9;
+  bloomPass.radius = 0.8;
+
+  composer = new THREE.EffectComposer(renderer);
+  composer.setSize(W,H);
+  composer.addPass(renderScene);
+  composer.addPass(bloomPass);
+
+  // handle resizing
+  window.addEventListener('resize', onWindowResize);
+  onWindowResize();
+
+  // start first video (try; may require user interaction)
+  tryStartVideo(0);
+}
+
+/* attempt to play video element; returns promise */
+function tryStartVideo(idx){
+  const v = videoElements[idx];
+  if(!v) return;
+  v.currentTime = 0;
+  const p = v.play();
+  if(p && p.then) {
+    p.then(()=> { /* playing */ }).catch(()=> { /* blocked */ });
+  }
+}
+
+/* window resize */
+function onWindowResize(){
+  const W = window.innerWidth, H = window.innerHeight;
+  camera.aspect = W/H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W,H);
+  composer.setSize(W,H);
+}
+
+/* Animation loop */
+let glitchTimer = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+
+  // small tv bob & gentle animation
+  tvGroup.rotation.y = 0.02 * Math.sin(clock.getElapsedTime() * 0.5);
+  tvGroup.position.y = -0.8 + Math.sin(clock.getElapsedTime()*0.6)*0.02;
+
+  // random bloom flicker tied to glitches
+  if(Math.random() < 0.002){ // occasional big flicker
+    pulseBloom(1.8, 120); // strength, ms
+  }
+
+  // regularly update video texture if playing
+  if(videoElements[currentChannel] && videoElements[currentChannel].readyState >= 2){
+    if(videoTexture) videoTexture.needsUpdate = true;
+  }
+
+  composer.render();
+}
+
+/* bloom pulse */
+function pulseBloom(strength=1.6, ms=120){
+  const orig = bloomPass.strength;
+  bloomPass.strength = strength;
+  setTimeout(()=> { bloomPass.strength = orig; }, ms);
+}
+
+/* ============================
+   TV channel switching + static glitch
+   ============================ */
+
+const staticDuration = 520; // ms
+let staticCanvas2D, staticCtx2D;
+createStaticOverlay();
+
+function createStaticOverlay(){
+  // Create a 2D overlay canvas that sits on top of renderer to show quick static (fallback)
+  staticCanvas2D = document.createElement('canvas');
+  staticCanvas2D.style.position = 'fixed';
+  staticCanvas2D.style.left = '50%';
+  staticCanvas2D.style.transform = 'translateX(-50%)';
+  staticCanvas2D.style.bottom = '24px';
+  staticCanvas2D.style.width = '380px';
+  staticCanvas2D.style.height = '220px';
+  staticCanvas2D.style.zIndex = 40;
+  staticCanvas2D.style.pointerEvents = 'none';
+  staticCanvas2D.style.opacity = '0';
+  staticCanvas2D.style.borderRadius = '4px';
+  document.body.appendChild(staticCanvas2D);
+  staticCtx2D = staticCanvas2D.getContext('2d');
+  resizeStaticCanvas();
+  window.addEventListener('resize', resizeStaticCanvas);
+}
+
+function resizeStaticCanvas(){
+  const w = Math.round(Math.min(window.innerWidth * 0.45, 380));
+  const h = Math.round(w * 0.58);
+  staticCanvas2D.width = w * devicePixelRatio;
+  staticCanvas2D.height = h * devicePixelRatio;
+  staticCanvas2D.style.width = w + 'px';
+  staticCanvas2D.style.height = h + 'px';
+  staticCanvas2D.style.left = '50%';
+  staticCanvas2D.style.transform = 'translateX(-50%)';
+  staticCanvas2D.style.bottom = '24px';
+  staticCtx2D.scale(devicePixelRatio, devicePixelRatio);
+}
+
+/* show static for ms milliseconds */
+function showStatic(ms = staticDuration){
+  return new Promise(resolve=>{
+    const w = staticCanvas2D.width / devicePixelRatio;
+    const h = staticCanvas2D.height / devicePixelRatio;
+    const frames = Math.max(1, Math.floor(ms / 30));
+    let frame = 0;
+    staticCanvas2D.style.opacity = '1';
+    function draw(){
+      const img = staticCtx2D.createImageData(w, h);
+      const px = img.data;
+      for(let i=0;i<px.length;i+=4){
+        const v = (Math.random() > 0.9) ? 255 : Math.floor(Math.random()*100);
+        px[i] = v; px[i+1] = v; px[i+2] = v; px[i+3] = 255;
+      }
+      staticCtx2D.putImageData(img, 0, 0);
+      frame++;
+      if(frame < frames){
+        requestAnimationFrame(draw);
+      } else {
+        // fade out quickly
+        setTimeout(()=> { staticCanvas2D.style.opacity = '0'; resolve(); }, 80);
+      }
+    }
+    draw();
+  });
+}
+
+/* set channel with static transition */
+async function setChannel(idx){
+  idx = ((idx % videoElements.length) + videoElements.length) % videoElements.length;
+  await showStatic(staticDuration);
+  // pause previous
+  try { videoElements[currentChannel].pause(); } catch(e){}
+  currentChannel = idx;
+  // assign new texture
+  videoTexture = new THREE.VideoTexture(videoElements[currentChannel]);
+  videoTexture.minFilter = THREE.LinearFilter;
+  videoTexture.magFilter = THREE.LinearFilter;
+  videoTexture.format = THREE.RGBFormat;
+  videoTexture.encoding = THREE.sRGBEncoding;
+  screenMaterial.map = videoTexture;
+  screenMaterial.needsUpdate = true;
+  try {
+    // ensure video plays
+    const p = videoElements[currentChannel].play();
+    if(p && p.then) p.catch(()=>{});
+  } catch(e){}
+  // quick screen glitch flash
+  triggerTVGlitchShort();
+}
+
+/* click the 3D tv: raycast & detect screen click */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+function onPointerDown(e){
+  // compute normalized pointer coords
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects([/* screen plane object: use screen */], true);
+  // simpler: approximate click region near bottom center where tv is
+  // check if click is close to screen region on screen space
+  const tvRect = getTVScreenDOMRect();
+  if(tvRect && e.clientX >= tvRect.left && e.clientX <= tvRect.right && e.clientY >= tvRect.top && e.clientY <= tvRect.bottom){
+    // clicked TV
+    (async ()=>{
+      await showStatic(staticDuration);
+      setChannel(currentChannel + 1);
+    })();
+  }
+}
+window.addEventListener('pointerdown', onPointerDown);
+
+/* get approximate TV screen DOM rect by mapping 3D screen corners to 2D */
+function getTVScreenDOMRect(){
+  // find screen corners in world space
+  const screenCorners = [
+    new THREE.Vector3(-1.2, 0.25, 0.65),
+    new THREE.Vector3(1.2, 0.25, 0.65),
+    new THREE.Vector3(-1.2, -0.35, 0.65),
+    new THREE.Vector3(1.2, -0.35, 0.65),
+  ];
+  const projected = screenCorners.map(v=>{
+    const copy = v.clone();
+    tvGroup.localToWorld(copy);
+    copy.project(camera);
+    return {
+      x: (copy.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-copy.y * 0.5 + 0.5) * window.innerHeight
+    };
+  });
+  const left = Math.min(...projected.map(p=>p.x));
+  const right = Math.max(...projected.map(p=>p.x));
+  const top = Math.min(...projected.map(p=>p.y));
+  const bottom = Math.max(...projected.map(p=>p.y));
+  return {left, right, top, bottom};
+}
+
+/* periodic random glitch */
+function triggerTVGlitchShort(){
+  // visual: quick zoom + hue shift + bloom pulse
+  pulseBloom(2.2, 140);
+  screenMaterial.emissiveIntensity = 2.4;
+  setTimeout(()=> screenMaterial.emissiveIntensity = 0.9, 140);
+  // also try quick CSS-like transform on renderer canvas (subpixel)
+  renderer.domElement.style.transform = 'translateX(-1px) scale(1.001)';
+  setTimeout(()=> renderer.domElement.style.transform = '', 160);
+}
+
+/* schedule random glitches */
+let glitchSchedule;
+function scheduleRandomGlitches(){
+  const d = 1500 + Math.random()*9000;
+  glitchSchedule = setTimeout(()=>{
+    triggerTVGlitchShort();
+    scheduleRandomGlitches();
+  }, d);
+}
+scheduleRandomGlitches();
+
+/* Initialize first channel playback & ensure video elements loaded */
+async function prepareVideos(){
+  for(let i=0;i<videoElements.length;i++){
+    const v = videoElements[i];
+    // load metadata
+    try {
+      await new Promise((res, rej) => {
+        v.addEventListener('loadeddata', res, { once:true });
+        v.addEventListener('error', ()=> res(), { once:true }); // resolve on error to avoid lock
+        v.load();
+        setTimeout(res, 1500); // fallback
+      });
+    } catch(e){}
+  }
+  // start first
+  try { await videoElements[0].play(); } catch(e){}
+}
+prepareVideos();
+
+/* start with channel 0 */
+setChannel(0);
+
+/* ============================
+   Keyboard shortcuts / accessibility
+   ============================ */
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'n' || e.key === 'N') nextSong();
+  if(e.key === ' '){
+    e.preventDefault();
+    // toggle channel
+    (async ()=>{ await showStatic(450); setChannel(currentChannel + 1); })();
+  }
+});
+
+/* cleanup */
+window.addEventListener('pagehide', ()=>{
+  clearTimeout(glitchSchedule);
+  try { audio.pause(); } catch(e){}
+  for(let v of videoElements){ try { v.pause(); } catch(e){} }
+});
+</script>
+</body>
+</html>
