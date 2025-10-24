@@ -1,675 +1,262 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PGVERT</title>
-<meta property="og:title" content="PGVERT">
-<meta name="description" content="PGVERT — Paint + Glue CGE Fusion variant with mini TV channels and music player">
-<link rel="icon" href="data:,">
+
 <style>
-  :root{
-    --bg1:#000;
-    --bg2:#111;
-    --text:#fff;
-    --accent:#ff00ff;
-    --glitch-red:#ff003c;
-    --glitch-cyan:#00f0ff;
-    --tv-frame:#1f1f1f;
-    --tv-glow:#ff88ff;
-    --p-size:52px;
-    --g-size:44px;
-  }
+/* === BASE VISUALS FROM ORIGINAL SITE === */
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:radial-gradient(circle at center,#000010 0%,#000 100%);
+  overflow:hidden;
+  color:#fff;
+  font-family:'Courier New',monospace;
+}
 
-  html,body{
-    height:100%;
-    margin:0;
-    background: linear-gradient(135deg,var(--bg1),var(--bg2));
-    font-family: 'Courier New', monospace;
-    color:var(--text);
-    overflow:hidden;
-  }
+/* starfield + vhs haze */
+body::before,body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  background:
+    radial-gradient(white 1px,transparent 1px) 0 0/3px 3px,
+    radial-gradient(rgba(255,255,255,.2) 1px,transparent 1px) 1.5px 1.5px/3px 3px;
+  opacity:.05;
+  animation:twinkle 4s linear infinite;
+}
+@keyframes twinkle{
+  0%,100%{opacity:.05;}
+  50%{opacity:.1;}
+}
 
-  main{
-    position:relative;
-    height:100vh;
-    width:100vw;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
+/* scanline overlay */
+.scanlines{
+  position:fixed;
+  inset:0;
+  z-index:2;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(0,0,0,0.07) 1px,
+    transparent 2px
+  );
+  pointer-events:none;
+  mix-blend-mode:overlay;
+}
 
-  canvas#sceneCanvas{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    z-index:0;
-    display:block;
-  }
+/* container for main scene */
+.main{
+  position:relative;
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
 
-  /* Keep the P and G SVG icons visually prominent like your site */
-  .svg-controls {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    display:flex;
-    gap:16px;
-    z-index: 30;
-    pointer-events:auto;
-    align-items:center;
-  }
+/* glowing SVG buttons */
+.svg-controls{
+  position:fixed;
+  top:5%;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:24px;
+  z-index:10;
+}
+.svg-controls svg{
+  filter:drop-shadow(0 0 8px #ff66ff);
+  cursor:pointer;
+  transition:transform .2s ease;
+}
+.svg-controls svg:hover{
+  transform:translateY(-2px) scale(1.03);
+}
 
-  /* paint can (P) - acts as tap-to-start/play toggle */
-  .p-btn {
-    width: var(--p-size);
-    height: var(--p-size);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius: 8px;
-    border:1px solid rgba(255,255,255,0.10);
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
-    cursor:pointer;
-    box-shadow: 0 8px 26px rgba(0,0,0,0.6);
-    transition: transform .12s ease, box-shadow .18s ease;
-  }
-  .p-btn:hover{ transform: translateY(-3px); }
+/* tv placeholder bottom center */
+#tvContainer{
+  position:fixed;
+  bottom:40px;
+  left:50%;
+  transform:translateX(-50%);
+  width:280px;
+  height:160px;
+  background:#111;
+  border-radius:6px;
+  overflow:hidden;
+  box-shadow:0 0 20px rgba(255,100,255,0.5);
+  z-index:5;
+}
 
-  /* glue bottle (G) - next-song */
-  .g-btn {
-    width: var(--g-size);
-    height: var(--g-size);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius: 7px;
-    border:1px solid rgba(255,255,255,0.10);
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
-    cursor:pointer;
-    box-shadow: 0 8px 22px rgba(0,0,0,0.55);
-    transition: transform .12s ease, box-shadow .18s ease;
-  }
-  .g-btn:hover{ transform: translateY(-3px); }
+/* static glitch overlay for tv */
+#tvStatic{
+  position:absolute;
+  inset:0;
+  background:#000;
+  opacity:0;
+  pointer-events:none;
+  z-index:6;
+}
 
-  /* SVG glow and flicker like your P/G effects */
-  .svg-glow{ filter: drop-shadow(0 0 8px var(--accent)); mix-blend-mode:screen; }
-  .svg-flicker{ animation: svgFlick 2.2s infinite ease-in-out; }
-  @keyframes svgFlick{
-    0%,20%,40%,100%{ opacity:1; transform:none; }
-    10%{ opacity:.6; transform: translateY(-1px) skewX(.5deg); }
-    30%{ opacity:.85; transform: translateY(1px) skewX(-.5deg); }
-  }
-
-  /* The small TV holder (bottom center) */
-  .tv-holder {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 22px;
-    z-index: 22;
-    pointer-events:auto;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width: min(46vw, 420px);
-    max-width:420px;
-  }
-
-  /* fallback 2D tv frame if needed */
-  .tv-fallback {
-    width:100%;
-    background:var(--tv-frame);
-    border-radius:3px; /* squared-off */
-    padding:12px;
-    box-sizing:border-box;
-    display:none;
-  }
-
-  /* hint / small helper */
-  .hint {
-    position: fixed;
-    right: 14px;
-    bottom: 14px;
-    z-index:15;
-    color: rgba(255,255,255,0.5);
-    font-size:12px;
-    font-family:monospace;
-    pointer-events:none;
-  }
-
-  /* keep large glitch text centered like original */
-  .glitch {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%,-50%);
-    font-size: clamp(36px, 10vw, 160px);
-    letter-spacing: .12em;
-    font-weight:900;
-    z-index: 6;
-    pointer-events:none;
-    text-transform:uppercase;
-  }
-  .glitch span { color: var(--text); text-shadow: 0 0 18px var(--accent); }
-  .glitch::before,.glitch::after{
-    content:attr(data-text);
-    position:absolute; left:0; top:0; width:100%;
-  }
-  .glitch::before{ color:var(--glitch-red); mix-blend-mode:screen; transform: translate(2px,-1px); opacity:.9; filter: blur(.4px) }
-  .glitch::after{ color:var(--glitch-cyan); mix-blend-mode:screen; transform: translate(-2px,1px); opacity:.9; filter: blur(.6px) }
-
-  @media(max-width:480px){
-    :root { --p-size:44px; --g-size:38px; }
-    .tv-holder { bottom: 12px; width: 86vw; }
-  }
+/* glowing logo text (PG) behind everything */
+.logo{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:clamp(40px,10vw,160px);
+  font-weight:bold;
+  color:#fff;
+  letter-spacing:.15em;
+  text-shadow:0 0 10px #ff66ff,0 0 20px #ff66ff;
+  mix-blend-mode:screen;
+  opacity:.8;
+}
 </style>
-
-<!-- Three.js and postprocessing -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-
 </head>
 <body>
-  <main>
-    <canvas id="sceneCanvas" aria-hidden="true"></canvas>
-    <div class="glitch" data-text="PG"><span>P+G</span></div>
+<div class="scanlines"></div>
+<div class="main">
+  <div class="logo">P G</div>
+  <!-- === Paint & Glue SVG Controls === -->
+  <div class="svg-controls">
+    <!-- Paint Can = Play / Pause -->
+    <svg id="paintCan" width="60" height="60" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
+      <rect x="14" y="22" width="36" height="30" rx="6" ry="6" fill="rgba(255,255,255,0.05)" />
+      <path d="M20 22v-4a12 12 0 0 1 24 0v4" />
+      <circle cx="32" cy="37" r="8" fill="rgba(255,255,255,0.1)" />
+    </svg>
 
-    <!-- P and G Buttons (use these SVGs; if you later replace with your exact originals, keep the same IDs) -->
-    <div class="svg-controls" aria-hidden="false">
-      <!-- Paint can (P) - tap to start / play-pause -->
-      <div id="pBtn" class="p-btn" title="Tap to start/play/pause">
-        <!-- stylized paint can svg (placeholder but matches style) -->
-        <svg class="svg-glow svg-flicker" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 7h18v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" opacity="0.95" />
-          <path d="M7 7V5a5 5 0 0 1 10 0v2" opacity="0.95"/>
-          <rect x="9" y="10" width="6" height="5" rx="1" ry="1" opacity="0.95" />
-        </svg>
-      </div>
+    <!-- Glue Bottle = Next Track -->
+    <svg id="glueBottle" width="48" height="48" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
+      <polygon points="24,18 40,18 38,58 26,58" fill="rgba(255,255,255,0.05)" />
+      <rect x="28" y="10" width="8" height="8" rx="2" ry="2" fill="rgba(255,255,255,0.1)" />
+      <path d="M28 34h8" />
+    </svg>
+  </div>
 
-      <!-- Glue bottle (G) - next song -->
-      <div id="gBtn" class="g-btn" title="Next song">
-        <!-- stylized glue bottle svg placeholder -->
-        <svg class="svg-glow svg-flicker" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v4" opacity="0.95"></path>
-          <path d="M8 7h8l-1 13H9L8 7z" opacity="0.95"></path>
-          <path d="M10 11h4" opacity="0.95"></path>
-        </svg>
-      </div>
-    </div>
+  <!-- === TV Element (bottom-center) === -->
+  <div id="tvContainer">
+    <video id="tvVideo" autoplay muted loop playsinline></video>
+    <canvas id="tvStatic"></canvas>
+  </div>
+</div> <!-- closes .main -->
 
-    <!-- TV holder (bottom center) -->
-    <div class="tv-holder" id="tvHolder" aria-hidden="true">
-      <div class="tv-fallback" id="tvFallback" aria-hidden="true"></div>
-    </div>
-
-    <div class="hint">PGVERT — tap the paint can (P) to start music if it doesn't autoplay</div>
-  </main>
-
+<!-- script section will follow in chunk 3 -->
 <script>
-/* ============================
-   Media lists (update if you change filenames)
-   ============================ */
-const videoSources = [
-  'assets/videos/My Movie 54.mov',
-  'assets/videos/IMG_3838.MOV',
-  'assets/videos/MoshUp_0021~2.mp4'
+/* === FILE LISTS === */
+const songs = [
+  "assets/songs/Frtruck.m4a",
+  "assets/songs/Bleep.m4a",
+  "assets/songs/FB Remix.m4a",
+  "assets/songs/BM AM & PM.m4a",
+  "assets/songs/Biebs in the Glue .m4a",
+  "assets/songs/LilSkTCh2.m4a",
+  "assets/songs/G U L P.m4a"
+];
+const videos = [
+  "assets/videos/My Movie 54.mov",
+  "assets/videos/IMG_3838.MOV",
+  "assets/videos/MoshUp_0021~2.mp4"
 ];
 
-const songList = [
-  'assets/songs/Frtruck.m4a',
-  'assets/songs/Bleep.m4a',
-  'assets/songs/FB Remix.m4a',
-  'assets/songs/BM AM & PM.m4a',
-  'assets/songs/Biebs in the Glue .m4a',
-  'assets/songs/LilSkTCh2.m4a',
-  'assets/songs/G U L P.m4a'
-];
+/* === AUDIO PLAYER === */
+let currentSong = 0;
+let audio = new Audio(songs[currentSong]);
+audio.volume = 0.8;
 
-/* ============================
-   Global UI elements
-   ============================ */
-const pBtn = document.getElementById('pBtn');
-const gBtn = document.getElementById('gBtn');
-const tvHolder = document.getElementById('tvHolder');
-const sceneCanvas = document.getElementById('sceneCanvas');
-
-/* ============================
-   Audio player setup
-   ============================ */
-let currentSongIdx = 0;
-let audio = new Audio();
-audio.src = songList[currentSongIdx];
-audio.preload = 'auto';
-audio.volume = 0.86;
-audio.loop = false; // we will advance on ended to create playlist loop
-
-audio.addEventListener('ended', () => {
-  playSongIndex(currentSongIdx + 1);
-});
-
-function playSongIndex(i){
-  currentSongIdx = ((i % songList.length) + songList.length) % songList.length;
-  // replace audio object to reset listeners cleanly
-  audio.pause();
-  audio = new Audio(songList[currentSongIdx]);
-  audio.preload = 'auto';
-  audio.volume = 0.86;
-  audio.addEventListener('ended', () => playSongIndex(currentSongIdx + 1));
-  audio.play().catch(()=>{/* blocked until interaction */});
-  // visual cue: small pulse on pBtn
-  pulseControl(pBtn);
-}
-
-function nextSong(){
-  playSongIndex(currentSongIdx + 1);
-}
-
-/* P acts as tap to start / toggle play/pause */
-pBtn.addEventListener('click', async (e)=>{
-  e.stopPropagation();
-  if (!audio || audio.paused) {
-    // try to play current audio
-    try {
-      await audio.play();
-    } catch (err) {
-      // attempt to re-create and play
-      playSongIndex(currentSongIdx);
-    }
-  } else {
-    audio.pause();
-  }
-  pulseControl(pBtn);
-});
-
-/* G acts as next song */
-gBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  nextSong();
-  pulseControl(gBtn);
-});
-
-/* viewport unlock attempt after 1s, else rely on user tapping P */
-setTimeout(async ()=>{
-  try {
-    await audio.play();
-  } catch (err) {
-    // blocked - user must tap P to start
-  }
-}, 1000);
-
-/* clickable anywhere will attempt to unlock once (follows user gesture rules) */
-let unlockedOnce = false;
-function tryUnlock(){
-  if(unlockedOnce) return;
-  unlockedOnce = true;
+function playSong(i){
+  currentSong = (i + songs.length) % songs.length;
+  audio.src = songs[currentSong];
   audio.play().catch(()=>{});
-  window.removeEventListener('pointerdown', tryUnlock);
 }
-window.addEventListener('pointerdown', tryUnlock, { once:true });
-
-/* visual pulse for controls */
-function pulseControl(el){
-  if(!el) return;
-  el.style.transform = 'translateY(-4px) scale(1.02)';
-  setTimeout(()=> el.style.transform = '', 140);
+function nextSong(){
+  playSong(currentSong + 1);
+  pulse(glueBottle);
 }
+audio.addEventListener("ended", ()=>nextSong());
 
-/* ============================
-   Three.js scene + 3D TV
-   ============================ */
+/* attempt autoplay after 1 s, fallback to paint-can click */
+setTimeout(()=>audio.play().catch(()=>{}),1000);
 
-let scene, camera, renderer, composer, clock;
-let tvGroup, screenMesh, videoTexture;
-let videoElements = [];
-let currentChannel = 0;
+/* === SVG CONTROLS === */
+const paintCan = document.getElementById("paintCan");
+const glueBottle = document.getElementById("glueBottle");
 
-initScene();
-animate();
+paintCan.addEventListener("click",()=>{
+  if(audio.paused){ audio.play().catch(()=>{}); }
+  else{ audio.pause(); }
+  pulse(paintCan);
+});
+glueBottle.addEventListener("click",()=>nextSong());
 
-function initScene(){
-  const W = window.innerWidth, H = window.innerHeight;
-  clock = new THREE.Clock();
-
-  renderer = new THREE.WebGLRenderer({ canvas: sceneCanvas, antialias:true, alpha:true });
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  renderer.setSize(W,H);
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 2000);
-  camera.position.set(0, 1.8, 6);
-  scene.add(camera);
-
-  // subtle lights
-  const amb = new THREE.AmbientLight(0xffffff, 0.25);
-  scene.add(amb);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-  dir.position.set(5,10,7);
-  scene.add(dir);
-
-  // floor to ground the scene
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(40,40),
-    new THREE.MeshStandardMaterial({ color:0x060606, metalness:0.2, roughness:0.8 })
-  );
-  floor.rotation.x = -Math.PI/2;
-  floor.position.y = -2;
-  scene.add(floor);
-
-  // TV group (chunky, squared)
-  tvGroup = new THREE.Group();
-
-  const bodyGeo = new THREE.BoxGeometry(3.0, 1.7, 1.1);
-  const bodyMat = new THREE.MeshStandardMaterial({ color:0x161616, metalness:0.2, roughness:0.3 });
-  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.set(0, -0.6, 0);
-  tvGroup.add(bodyMesh);
-
-  // bezel (thin)
-  const bezelGeo = new THREE.BoxGeometry(2.5, 1.2, 0.06);
-  const bezelMat = new THREE.MeshStandardMaterial({ color:0x0b0b0b, metalness:0.1, roughness:0.25 });
-  const bezelMesh = new THREE.Mesh(bezelGeo, bezelMat);
-  bezelMesh.position.set(0, -0.6, 0.52);
-  tvGroup.add(bezelMesh);
-
-  // screen (plane)
-  const screenGeo = new THREE.PlaneGeometry(2.2, 1.05);
-  const screenMat = new THREE.MeshBasicMaterial({ color:0x000000 });
-  screenMesh = new THREE.Mesh(screenGeo, screenMat);
-  screenMesh.position.set(0, -0.6, 0.56);
-  tvGroup.add(screenMesh);
-
-  // tv group position
-  tvGroup.position.set(0, -0.9, 0);
-  tvGroup.rotation.y = 0.03;
-  scene.add(tvGroup);
-
-  // screen emissive add-on using a RectAreaLight if available to provide glow feel
-  // (RectAreaLight needs RectAreaLightUniformsLib in full examples; we emulate with PointLight)
-  const glow = new THREE.PointLight(0xff88ff, 0.45, 6);
-  glow.position.set(0, -0.6, 0.9);
-  scene.add(glow);
-
-  // postprocessing: render + bloom
-  const renderPass = new THREE.RenderPass(scene, camera);
-  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 0.6, 0.6, 0.6);
-  bloomPass.threshold = 0.14;
-  bloomPass.strength = 0.9;
-  bloomPass.radius = 0.8;
-
-  composer = new THREE.EffectComposer(renderer);
-  composer.setSize(W, H);
-  composer.addPass(renderPass);
-  composer.addPass(bloomPass);
-
-  // prepare video elements
-  for (let i = 0; i < videoSources.length; i++) {
-    const v = document.createElement('video');
-    v.src = videoSources[i];
-    v.muted = true;
-    v.loop = true;
-    v.playsInline = true;
-    v.preload = 'auto';
-    v.crossOrigin = 'anonymous';
-    videoElements.push(v);
-  }
-
-  // create texture from first video
-  videoTexture = new THREE.VideoTexture(videoElements[0]);
-  videoTexture.minFilter = THREE.LinearFilter;
-  videoTexture.magFilter = THREE.LinearFilter;
-  videoTexture.format = THREE.RGBFormat;
-  videoTexture.encoding = THREE.sRGBEncoding;
-  screenMesh.material.map = videoTexture;
-  screenMesh.material.needsUpdate = true;
-  screenMesh.material.emissive = new THREE.Color(0xffddff);
-  screenMesh.material.emissiveIntensity = 0.9;
-
-  // start loading videos (may be blocked until user interacts)
-  for (let i = 0; i < videoElements.length; i++) {
-    loadVideoElement(videoElements[i]);
-  }
-
-  window.addEventListener('resize', onWindowResize);
-  onWindowResize();
+function pulse(el){
+  el.style.transform="scale(1.08)";
+  setTimeout(()=>el.style.transform="",180);
 }
 
-/* load video safely */
-function loadVideoElement(v){
-  v.load();
-  // try auto-play; if blocked we'll rely on user interactions
-  const p = v.play();
-  if (p && p.catch) p.catch(()=>{ /* ignored */ });
+/* === TV HANDLING === */
+const tv = document.getElementById("tvVideo");
+const tvStatic = document.getElementById("tvStatic");
+let currentVid = 0;
+
+function loadVideo(i){
+  currentVid = (i + videos.length) % videos.length;
+  tv.src = videos[currentVid];
+  tv.play().catch(()=>{});
+}
+function nextVideo(){
+  showStatic(500).then(()=>loadVideo(currentVid + 1));
 }
 
-/* resize handling */
-function onWindowResize(){
-  const W = window.innerWidth, H = window.innerHeight;
-  camera.aspect = W/H;
-  camera.updateProjectionMatrix();
-  renderer.setSize(W,H);
-  composer.setSize(W,H);
-}
+/* loop + click to change channel */
+tv.loop = true;
+tv.muted = true;
+loadVideo(0);
+tv.addEventListener("click",()=>nextVideo());
 
-/* animate loop */
-let lastGlitch = 0;
-function animate(){
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-
-  // gentle bob and tiny rotation so the TV feels alive
-  tvGroup.rotation.y = 0.02 * Math.sin(t * 0.6);
-  tvGroup.position.y = -0.9 + Math.sin(t * 0.5) * 0.015;
-
-  // occasional random bloom pulse
-  if (Math.random() < 0.002) {
-    pulseBloom(1.8, 120);
-  }
-
-  // ensure videoTexture updates
-  if (videoElements[currentChannel] && videoElements[currentChannel].readyState >= 2) {
-    if (videoTexture) videoTexture.needsUpdate = true;
-  }
-
-  composer.render();
-}
-
-/* bloom pulse helper */
-function pulseBloom(strength=1.8, dur=140){
-  const orig = bloomPass.strength;
-  bloomPass.strength = strength;
-  setTimeout(()=> bloomPass.strength = orig, dur);
-}
-
-/* ============================
-   Static overlay canvas for channel-switching
-   ============================ */
-let staticCanvas = null;
-let staticCtx = null;
-
-function ensureStaticCanvas() {
-  if (staticCanvas) return;
-  staticCanvas = document.createElement('canvas');
-  staticCanvas.style.position = 'fixed';
-  staticCanvas.style.zIndex = 40;
-  staticCanvas.style.left = '50%';
-  staticCanvas.style.transform = 'translateX(-50%)';
-  staticCanvas.style.bottom = '22px';
-  staticCanvas.style.pointerEvents = 'none';
-  staticCanvas.style.opacity = '0';
-  staticCanvas.style.borderRadius = '3px';
-  document.body.appendChild(staticCanvas);
-  staticCtx = staticCanvas.getContext('2d');
-  resizeStaticCanvas();
-  window.addEventListener('resize', resizeStaticCanvas);
-}
-function resizeStaticCanvas(){
-  if(!staticCanvas) return;
-  const w = Math.round(Math.min(window.innerWidth * 0.45, 420));
-  const h = Math.round(w * 0.58);
-  staticCanvas.width = w * devicePixelRatio;
-  staticCanvas.height = h * devicePixelRatio;
-  staticCanvas.style.width = w + 'px';
-  staticCanvas.style.height = h + 'px';
-  staticCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-  staticCanvas.style.left = '50%';
-  staticCanvas.style.transform = 'translateX(-50%)';
-  staticCanvas.style.bottom = '22px';
-}
-
-/* show static for ms ms then resolve */
-function showStatic(ms = 520){
-  ensureStaticCanvas();
-  return new Promise(resolve=>{
-    const w = staticCanvas.width / devicePixelRatio;
-    const h = staticCanvas.height / devicePixelRatio;
-    const frames = Math.max(1, Math.floor(ms / 30));
-    let f = 0;
-    staticCanvas.style.opacity = '1';
-    function draw() {
-      const img = staticCtx.createImageData(w, h);
-      const px = img.data;
-      for (let i=0;i<px.length;i+=4){
-        const v = (Math.random() > 0.9) ? 255 : Math.floor(Math.random()*110);
-        px[i] = v; px[i+1] = v; px[i+2] = v; px[i+3] = 255;
+/* === STATIC EFFECT === */
+tvStatic.width = tv.clientWidth;
+tvStatic.height = tv.clientHeight;
+const ctx = tvStatic.getContext("2d");
+function showStatic(ms){
+  return new Promise(res=>{
+    tvStatic.style.opacity="1";
+    let frames = 0;
+    function draw(){
+      const img = ctx.createImageData(tvStatic.width,tvStatic.height);
+      const d = img.data;
+      for(let i=0;i<d.length;i+=4){
+        const v = Math.random()*255;
+        d[i]=d[i+1]=d[i+2]=v;
+        d[i+3]=255;
       }
-      staticCtx.putImageData(img, 0, 0);
-      f++;
-      if (f < frames) requestAnimationFrame(draw);
-      else {
-        setTimeout(()=> { staticCanvas.style.opacity = '0'; resolve(); }, 60);
+      ctx.putImageData(img,0,0);
+      frames++;
+      if(frames<Math.floor(ms/30)) requestAnimationFrame(draw);
+      else{
+        tvStatic.style.opacity="0";
+        res();
       }
     }
     draw();
   });
 }
 
-/* set channel: show static then change video texture */
-async function setChannel(idx){
-  idx = ((idx % videoElements.length)+videoElements.length)%videoElements.length;
-  await showStatic(520);
-  try { videoElements[currentChannel].pause(); } catch(e){}
-  currentChannel = idx;
-  // swap videoTexture to new video element
-  videoTexture = new THREE.VideoTexture(videoElements[currentChannel]);
-  videoTexture.minFilter = THREE.LinearFilter;
-  videoTexture.magFilter = THREE.LinearFilter;
-  videoTexture.format = THREE.RGBFormat;
-  videoTexture.encoding = THREE.sRGBEncoding;
-  screenMesh.material.map = videoTexture;
-  screenMesh.material.needsUpdate = true;
-  try { await videoElements[currentChannel].play(); } catch(e){}
-  pulseTV();
-}
-
-/* pulse TV glitch visuals */
-function pulseTV(){
-  pulseBloom(2.2, 140);
-  screenMesh.material.emissiveIntensity = 2.2;
-  setTimeout(()=> screenMesh.material.emissiveIntensity = 0.9, 140);
-}
-
-/* initial channel */
-function startInitialChannel(){
-  // ensure first video is playing when allowed
-  try { videoElements[0].play().catch(()=>{}); } catch(e){}
-  setChannel(0);
-}
-
-/* click detection mapped to visible TV area */
-function onPointerDown(e){
-  // compute bounding rect of projected TV screen
-  const rect = getTVScreenDOMRect();
-  if (!rect) return;
-  const cx = e.clientX, cy = e.clientY;
-  if (cx >= rect.left && cx <= rect.right && cy >= rect.top && cy <= rect.bottom) {
-    // clicked the TV
-    (async ()=>{
-      await showStatic(520);
-      setChannel(currentChannel + 1);
-    })();
+/* === RANDOM GLITCH PULSES === */
+setInterval(()=>{
+  if(Math.random()<0.1){
+    tvContainer.style.boxShadow="0 0 30px rgba(255,100,255,0.9)";
+    setTimeout(()=>tvContainer.style.boxShadow="0 0 20px rgba(255,100,255,0.5)",150);
   }
-}
-window.addEventListener('pointerdown', onPointerDown);
-
-/* approximate TV screen DOM rect by projecting corners */
-function getTVScreenDOMRect(){
-  if(!screenMesh) return null;
-  const corners = [
-    new THREE.Vector3(-1.1, 0.525, 0.56),
-    new THREE.Vector3(1.1, 0.525, 0.56),
-    new THREE.Vector3(-1.1, -0.525, 0.56),
-    new THREE.Vector3(1.1, -0.525, 0.56)
-  ];
-  const proj = corners.map(v=>{
-    const w = v.clone();
-    tvGroup.localToWorld(w);
-    w.project(camera);
-    return { x: (w.x * 0.5 + 0.5) * window.innerWidth, y: (-w.y * 0.5 + 0.5) * window.innerHeight };
-  });
-  const left = Math.min(...proj.map(p=>p.x));
-  const right = Math.max(...proj.map(p=>p.x));
-  const top = Math.min(...proj.map(p=>p.y));
-  const bottom = Math.max(...proj.map(p=>p.y));
-  return { left, right, top, bottom };
-}
-
-/* schedule random glitches for the TV */
-function scheduleRandomGlitches(){
-  const delay = 2000 + Math.random() * 8000; // 2-10s
-  setTimeout(()=>{
-    pulseTV();
-    scheduleRandomGlitches();
-  }, delay);
-}
-
-/* prepare videos (load metadata) */
-async function prepareVideos(){
-  for (let i=0;i<videoElements.length;i++){
-    const v = videoElements[i];
-    // attempt load metadata
-    await new Promise(res=>{
-      let done = false;
-      function onLoaded(){ if(!done){ done=true; res(); } }
-      v.addEventListener('loadeddata', onLoaded, { once:true });
-      v.addEventListener('error', ()=> { if(!done){ done=true; res(); }}, { once:true });
-      setTimeout(()=> { if(!done){ done=true; res(); } }, 1800);
-      try { v.load(); } catch(e){}
-    });
-  }
-  try { videoElements[0].play().catch(()=>{}); } catch(e){}
-  setChannel(0);
-  scheduleRandomGlitches();
-}
-prepareVideos();
-
-/* Start scene animation and ensure tv visible */
-startInitialChannel();
-
-/* keyboard shortcuts */
-window.addEventListener('keydown', (e)=>{
-  if (e.key === 'n' || e.key === 'N') nextSong();
-  if (e.key === ' '){
-    e.preventDefault();
-    (async ()=>{ await showStatic(520); setChannel(currentChannel+1); })();
-  }
-});
-
-/* cleanup */
-window.addEventListener('pagehide', ()=>{
-  try { audio.pause(); } catch(e){}
-  for (let v of videoElements) try{ v.pause(); }catch(e){}
-});
-
-/* kick off animation loop */
-(function animLoop(){ animate(); })();
-
+},2000);
 </script>
 </body>
 </html>
