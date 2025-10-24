@@ -6,140 +6,125 @@
 <title>PGVERT2</title>
 <meta property="og:title" content="PGVERT2" />
 <meta name="description" content="PGVERT2 — Paint + Glue VERT — VHS fusion with interactive TV & music" />
+<!-- If you want the uploaded JPG to be the OG image, place the file in the same folder and uncomment the following meta line:
+<meta property="og:image" content="PXL_20251023_140822882 (1).jpg" />
+-->
 <style>
   :root{
     --global-static-opacity: 0.12;
     --svg-glow-amp: 1;
     --tv-glow-level: 1;
   }
-  html,body{
-    height:100%; width:100%; margin:0; padding:0;
-    background:#050008; color:#fff; font-family: 'Courier New', monospace;
-    overflow:hidden;
-  }
-
-  /* background vignette (deep purple radial) */
+  html,body{height:100%;width:100%;margin:0;padding:0;background:#050008;color:#fff;font-family:'Courier New',monospace;overflow:hidden;}
+  /* deep purple radial vignette */
   body::before{
     content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
     background: radial-gradient(circle at 50% 36%, rgba(28,8,36,0.18) 0%, rgba(0,0,0,0.98) 70%);
   }
 
-  /* STAR CANVAS (behind content) */
+  /* star canvas behind content */
   #starCanvas { position:fixed; inset:0; z-index:1; width:100%; height:100%; pointer-events:none; }
 
-  /* STAGE (center content) */
-  .stage {
+  /* stage centered content */
+  .stage{
     position:relative; z-index:3; height:100vh; width:100vw;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:28px; box-sizing:border-box; padding:36px;
-    perspective:1200px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px;
+    box-sizing:border-box; padding:36px; perspective:1200px;
   }
 
-  /* big SVG buttons ( ~3x scale ) */
-  .svg-btn {
-    width: 240px; height: 240px; min-width:160px; min-height:160px;
-    display:flex; align-items:center; justify-content:center;
-    border-radius:18px; background:rgba(255,255,255,0.02);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-    cursor:pointer; user-select:none; transition: transform .22s ease, filter .22s ease;
-    will-change: transform, filter;
-    --c1: rgba(60,120,255,0.95);
-    --c2: rgba(255,40,120,0.95);
+  /* big svg buttons (~3x scale) */
+  .svg-btn{
+    width:240px; height:240px; min-width:160px; min-height:160px;
+    display:flex; align-items:center; justify-content:center; border-radius:18px;
+    background:rgba(255,255,255,0.02); box-shadow:0 20px 40px rgba(0,0,0,0.6);
+    cursor:pointer; transition:transform .22s, filter .22s; user-select:none;
+    --c1: rgba(60,120,255,0.95); --c2: rgba(255,40,120,0.95);
     filter: drop-shadow(0 0 calc(8px * var(--svg-glow-amp)) var(--c1))
             drop-shadow(0 0 calc(28px * var(--svg-glow-amp)) var(--c2));
   }
-  .svg-btn:hover { transform: translateY(-10px) scale(1.03); }
-  .svg-btn svg { width:72%; height:72%; display:block; }
+  .svg-btn:hover{ transform:translateY(-10px) scale(1.03); }
+  .svg-btn svg{ width:72%; height:72%; display:block; }
 
-  /* TV (center) */
-  .tv {
+  /* TV centered large */
+  .tv{
     position:relative;
     width: min(62vw, 820px);
     height: calc(min(62vw, 820px) * 0.62);
-    max-width:900px;
-    max-height:560px;
+    max-width:900px; max-height:560px;
     background:#060607; border-radius:12px; overflow:hidden;
-    box-shadow: 0 40px 120px rgba(0,0,0,0.85), 0 0 40px rgba(255,80,200,0.06);
-    border: 3px solid rgba(255,255,255,0.03);
-    transition: transform .42s cubic-bezier(.2,.9,.2,1);
-    will-change: transform, box-shadow, filter;
+    box-shadow:0 40px 120px rgba(0,0,0,0.85), 0 0 40px rgba(255,80,200,0.06);
+    border:3px solid rgba(255,255,255,0.03);
+    transition:transform .42s cubic-bezier(.2,.9,.2,1);
     display:flex; align-items:center; justify-content:center;
   }
-  .tv video { width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1; }
+  .tv video{ width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1; }
+  .tv img.flashImage{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:6;
+    opacity:0; pointer-events:none; transition: opacity 140ms linear;
+  }
+  /* tv-local static (above video & flash image to create strong effect) */
+  .tv canvas.tv-static{ position:absolute; inset:0; width:100%; height:100%; z-index:7; pointer-events:none; mix-blend-mode:screen; opacity:0.12; }
 
-  /* TV-local static canvas inside TV (above video) */
-  .tv canvas.tv-static { position:absolute; inset:0; width:100%; height:100%; z-index:12; pointer-events:none; mix-blend-mode:screen; opacity:0.08; }
-
-  /* TV glow - animated via CSS var updated by JS */
+  /* TV glow (pulses from audio) */
   .tv::before{
     content:""; position:absolute; inset:-12px; z-index:2; pointer-events:none; border-radius:14px;
     box-shadow: 0 0 calc(40px * var(--tv-glow-level)) rgba(255,80,200,0.18), inset 0 0 calc(20px * var(--tv-glow-level)) rgba(255,80,200,0.05);
-    transition: box-shadow .12s linear;
-    mix-blend-mode:screen;
+    transition: box-shadow .12s linear; mix-blend-mode:screen;
   }
 
-  /* Fullscreen global static overlay canvas (above stage/content) */
-  #globalStatic {
-    position:fixed; inset:0; z-index:6; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen;
+  /* fullscreen global static overlay (over everything) */
+  #globalStatic{
+    position:fixed; inset:0; z-index:9; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen;
     opacity:var(--global-static-opacity); transform: translateZ(0);
     will-change: transform, opacity;
   }
 
-  /* scanlines overlay above everything */
-  .scanlines {
-    position:fixed; inset:0; z-index:8; pointer-events:none; mix-blend-mode:overlay;
+  /* scanlines (top layer subtle) */
+  .scanlines{
+    position:fixed; inset:0; z-index:11; pointer-events:none; mix-blend-mode:overlay;
     background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,0.02) 0px, rgba(0,0,0,0.08) 1px, transparent 3px);
     opacity:0.18;
   }
 
-  /* glow for SVGs; CSS var colors will be set by JS */
-  .glow {
-    transition: filter .12s linear;
-  }
+  /* stage glitch */
+  .stage.glitch{ animation:stage-smack .36s cubic-bezier(.2,.9,.2,1); }
+  @keyframes stage-smack { 0%{transform:translateY(0)}20%{transform:translateY(-10px)}50%{transform:translateY(8px)}100%{transform:translateY(0)} }
 
-  /* stage glitch wobble */
-  .stage.glitch { animation: stage-smack 360ms cubic-bezier(.2,.9,.2,1); }
-  @keyframes stage-smack {
-    0% { transform: translateY(0) }
-    20% { transform: translateY(-10px) }
-    50% { transform: translateY(8px) }
-    100% { transform: translateY(0) }
-  }
-
-  /* responsive */
   @media (max-width:900px){
-    .svg-btn { width: 40vw; height: 40vw; }
-    .tv { width: 92vw; height: calc(92vw * 0.62); }
+    .svg-btn{ width:40vw; height:40vw; }
+    .tv{ width:92vw; height:calc(92vw * 0.62); }
   }
 
-  .sr-only { position:absolute; left:-9999px; }
+  .sr-only{ position:absolute; left:-9999px; }
 </style>
 </head>
 <body>
   <!-- starfield canvas (behind content) -->
   <canvas id="starCanvas" aria-hidden="true"></canvas>
 
-  <!-- main stage center -->
+  <!-- main stage -->
   <div class="stage" id="stage" role="application" aria-label="PGVERT2 interactive TV">
-    <!-- Paint can (top) -->
-    <div id="paintCan" class="svg-btn glow" aria-label="Play/pause (paint can)">
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" aria-hidden="true">
+    <!-- paint can (top) -->
+    <div id="paintCan" class="svg-btn glow" aria-label="Play playlist (paint can)">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6">
         <rect x="10" y="18" width="44" height="36" rx="6" fill="rgba(255,255,255,0.04)"/>
         <path d="M16 18v-6a16 16 0 0 1 32 0v6" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="32" cy="36" r="8" fill="rgba(255,255,255,0.12)" />
       </svg>
     </div>
 
-    <!-- Center TV -->
+    <!-- TV central -->
     <div class="tv" id="tv">
       <video id="tvVideo" autoplay muted playsinline></video>
-      <!-- tv-local static overlay -->
-      <canvas class="tv-static" id="tvStaticCanvas" aria-hidden="true"></canvas>
+      <!-- flash image overlay (appears for 0.5s every 2.5m) -->
+      <img id="flashImg" class="flashImage" src="PXL_20251023_140822882 (1).jpg" alt="Flash" />
+      <!-- TV-local static canvas (stronger / faster) -->
+      <canvas id="tvStaticCanvas" class="tv-static" aria-hidden="true"></canvas>
     </div>
 
-    <!-- Glue bottle (bottom) -->
-    <div id="glueBottle" class="svg-btn glow" aria-label="Next track (glue bottle)">
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" aria-hidden="true">
+    <!-- glue bottle (bottom) -->
+    <div id="glueBottle" class="svg-btn glow" aria-label="Skip to next song (glue bottle)">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6">
         <path d="M20 18h24l2 36H18z" fill="rgba(255,255,255,0.04)"/>
         <rect x="28" y="8" width="8" height="10" rx="2" fill="rgba(255,255,255,0.1)"/>
         <path d="M28 34h8" stroke-linecap="round"/>
@@ -150,10 +135,11 @@
   <div class="scanlines" aria-hidden="true"></div>
   <canvas id="globalStatic" aria-hidden="true"></canvas>
 
-  <div class="sr-only">Paint can play/pause. Glue bottle next track. Click the TV to change channels.</div>
+  <div class="sr-only">Paint can play playlist. Glue bottle skip track. Click TV to change video channel.</div>
 
 <script>
-/* ================= CONFIG: media files ================= */
+/* ==================== CONFIG (media filenames) ==================== */
+/* Audio playlist (plays in order, when all songs finish the mix restarts) */
 const songs = [
   "Frtruck.m4a",
   "Bleep.m4a",
@@ -163,12 +149,23 @@ const songs = [
   "LilSkTCh2.m4a",
   "G U L P.m4a"
 ];
+
+/* Video rotation list (includes the uploaded ~2 file). We'll randomize order per cycle */
 const videos = [
   "My Movie 54.mov",
   "IMG_3838.MOV",
-  "MoshUp_0021~2.mp4"
+  "MoshUp_0021~2.mp4",
+  "PXL_20250820_010944534~2.mp4"
 ];
-/* ====================================================== */
+
+/* The flash image file (should be present in same folder) */
+const flashImageFile = "PXL_20251023_140822882 (1).jpg";
+
+/* INTERVALS */
+const VIDEO_SWITCH_MS = 30000;     // 30s between video switches
+const FLASH_INTERVAL_MS = 150000;  // 2.5 minutes
+const FLASH_DURATION_MS = 500;     // 0.5s flash display
+/* ================================================================= */
 
 /* DOM refs */
 const starCanvas = document.getElementById('starCanvas');
@@ -176,22 +173,21 @@ const globalStatic = document.getElementById('globalStatic');
 const tvStaticCanvas = document.getElementById('tvStaticCanvas');
 const tv = document.getElementById('tv');
 const tvVideo = document.getElementById('tvVideo');
+const flashImg = document.getElementById('flashImg');
 const paintCan = document.getElementById('paintCan');
 const glueBottle = document.getElementById('glueBottle');
 const stage = document.getElementById('stage');
 
-/* RESIZE helper for canvases (devicePixelRatio aware) */
-function resizeCanvas(canvas){
+/* ======== canvas resizing helpers ======== */
+function resizeCanvasFull(c){
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.ceil(window.innerWidth * dpr);
-  canvas.height = Math.ceil(window.innerHeight * dpr);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  const ctx = canvas.getContext('2d');
+  c.width = Math.ceil(window.innerWidth * dpr);
+  c.height = Math.ceil(window.innerHeight * dpr);
+  c.style.width = window.innerWidth + 'px';
+  c.style.height = window.innerHeight + 'px';
+  const ctx = c.getContext('2d');
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-
-/* tv canvas resize (matches tv element) */
 function resizeTvCanvas(){
   const rect = tv.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -204,109 +200,188 @@ function resizeTvCanvas(){
 }
 
 /* initial resize */
-resizeCanvas(starCanvas);
-resizeCanvas(globalStatic);
+resizeCanvasFull(starCanvas);
+resizeCanvasFull(globalStatic);
 resizeTvCanvas();
-window.addEventListener('resize', ()=> {
-  resizeCanvas(starCanvas);
-  resizeCanvas(globalStatic);
+window.addEventListener('resize', ()=>{
+  resizeCanvasFull(starCanvas);
+  resizeCanvasFull(globalStatic);
   resizeTvCanvas();
   initStars();
 });
 
-/* ============== Audio + analyser for TV glow pulse ============== */
-let audio, audioCtx, analyser, dataArray, sourceNode, currentSong = 0;
-function createAudio(){
+/* ========== AUDIO & PLAYLIST (mix loops per cycle) ========== */
+let audio = null;
+let audioCtx = null;
+let sourceNode = null;
+let analyser = null;
+let dataArray = null;
+let currentSong = 0;
+let unlocked = false;
+
+function createAudioInstance(idx = 0){
+  currentSong = idx % songs.length;
   audio = new Audio(songs[currentSong]);
   audio.preload = 'auto';
-  audio.loop = false;
+  audio.loop = false; // don't loop a single song
   audio.volume = 0.8;
-  audio.addEventListener('ended', ()=> playSongIndex(currentSong+1));
+  audio.addEventListener('ended', ()=> {
+    // advance to next song; when all songs played, the playlist continues (wrap)
+    currentSong = (currentSong + 1) % songs.length;
+    playCurrentSong();
+  });
 }
-function playSongIndex(idx){
-  currentSong = ((idx % songs.length) + songs.length) % songs.length;
-  if (audio) audio.pause();
-  audio = new Audio(songs[currentSong]);
-  audio.preload='auto'; audio.volume=0.8;
-  audio.addEventListener('ended', ()=> playSongIndex(currentSong+1));
-  audio.play().catch(()=>{});
-  connectAnalyser();
-}
-createAudio();
-
-/* Unlock audio context and playback on first gesture (autoplay rules) */
-let unlocked = false;
-async function unlockOnFirstGesture(){
-  if (unlocked) return;
-  unlocked = true;
-  try { await audio.play(); } catch(e){}
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  connectAnalyser();
-  // also try to play tv video if muted
-  try { tvVideo.play().catch(()=>{}); } catch(e){}
-  window.removeEventListener('pointerdown', unlockOnFirstGesture);
-  window.removeEventListener('keydown', unlockOnFirstGesture);
-}
-window.addEventListener('pointerdown', unlockOnFirstGesture, { once:true });
-window.addEventListener('keydown', unlockOnFirstGesture, { once:true });
 
 function connectAnalyser(){
-  try {
+  try{
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (sourceNode) try { sourceNode.disconnect(); } catch(e){}
     sourceNode = audioCtx.createMediaElementSource(audio);
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 512;
-    const bufferLength = analyser.frequencyBinCount;
-    dataArray = new Uint8Array(bufferLength);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
     sourceNode.connect(analyser);
     analyser.connect(audioCtx.destination);
-  } catch(e) {
-    analyser = null; dataArray = null;
+  }catch(e){
+    analyser = null;
   }
 }
 
-/* ============== Video channels (preload offscreen) ============== */
-let videoEls = [];
-(function preloadVideos(){
-  for (let path of videos){
-    const v = document.createElement('video');
-    v.src = path;
-    v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
-    videoEls.push(v);
+function playCurrentSong(){
+  if (!audio) createAudioInstance(currentSong);
+  audio.src = songs[currentSong];
+  audio.play().catch(()=>{}); // may be blocked — unlock gesture will fix
+  connectAnalyser();
+}
+
+/* Autoplay after 1s if allowed; otherwise paintCan click will unlock and play.
+   Note: unlocked prevents double starts. */
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    if (!unlocked) tryAutoStart();
+  }, 1000);
+});
+async function tryAutoStart(){
+  if (unlocked) return;
+  if (!audio) createAudioInstance(0);
+  try {
+    await audio.play();
+    unlocked = true;
+    // try to connect analyser
+    connectAnalyser();
+  } catch(e){
+    // blocked — wait for paintCan gesture
   }
-  if (videoEls[0]) { tvVideo.src = videoEls[0].src; tvVideo.play().catch(()=>{}); }
-})();
-let currentVid = 0;
-async function showChannel(i){
-  currentVid = ((i % videoEls.length) + videoEls.length) % videoEls.length;
-  rampTvStatic(0.5, 160).then(()=>{
-    tvVideo.src = videoEls[currentVid].src;
+}
+paintCan.addEventListener('click', async ()=>{
+  if (!unlocked){
+    unlocked = true;
+    if (!audio) createAudioInstance(0);
+    try { await audio.play(); } catch(e){}
+    connectAnalyser();
+  } else {
+    // if already unlocked, keep playing (no pause). user requested no toggle.
+    if (!audio) createAudioInstance(0);
+    playCurrentSong();
+  }
+});
+
+/* Glue bottle skips to next song immediately */
+glueBottle.addEventListener('click', ()=>{
+  if (!audio) createAudioInstance(0);
+  currentSong = (currentSong + 1) % songs.length;
+  playCurrentSong();
+});
+
+/* ======== VIDEO ROTATION (randomized per cycle, no repeats until all played) ======== */
+let activeVideoList = [];
+let playedThisCycle = new Set();
+let videoTimer = null;
+let VIDEO_ROLL_INTERVAL = VIDEO_SWITCH_MS; // 30s
+// Build initial randomized list
+function shuffleArray(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function resetVideoCycle(){
+  activeVideoList = shuffleArray(videos);
+  playedThisCycle.clear();
+}
+resetVideoCycle();
+
+function pickNextVideo(){
+  if (activeVideoList.length === 0){
+    resetVideoCycle();
+  }
+  const next = activeVideoList.shift();
+  playedThisCycle.add(next);
+  return next;
+}
+
+// set video and start playing (loops individually)
+function setVideoSrc(path){
+  try {
+    tvVideo.src = path;
+    tvVideo.loop = true;
     tvVideo.play().catch(()=>{});
-  });
-}
-function nextChannel(){ showChannel(currentVid + 1); }
-tv.addEventListener('click', (e)=> { e.stopPropagation(); nextChannel(); });
-
-/* ============== Buttons ============== */
-paintCan.addEventListener('click', async (e)=>{
-  e.stopPropagation();
-  if (!audio) createAudio();
-  try { if (audio.paused) await audio.play(); else audio.pause(); } catch(e){ playSongIndex(currentSong); }
-  pulse(paintCan);
-});
-glueBottle.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  playSongIndex(currentSong+1);
-  pulse(glueBottle);
-});
-function pulse(el){
-  el.style.transition = 'transform 160ms ease';
-  el.style.transform = 'translateY(-10px) scale(1.03)';
-  setTimeout(()=> el.style.transform = '', 180);
+  } catch(e){}
 }
 
-/* ============== STARFIELD ============== */
+// Start automatic switching every VIDEO_ROLL_INTERVAL
+function startVideoRotation(){
+  // immediately set first video
+  setVideoSrc(pickNextVideo());
+  if (videoTimer) clearInterval(videoTimer);
+  videoTimer = setInterval(()=>{
+    // choose next video; ensure not same as current
+    let next = pickNextVideo();
+    // if next equals current, and there are other items left, pick again
+    if (tvVideo.src && next && (tvVideo.src.includes(next) || (tvVideo.currentSrc && tvVideo.currentSrc.includes(next)))){
+      // if cycle has more items, pick again; otherwise accept
+      if (activeVideoList.length > 0){
+        next = pickNextVideo();
+      }
+    }
+    setVideoSrc(next);
+  }, VIDEO_ROLL_INTERVAL);
+}
+startVideoRotation();
+
+/* Click TV to skip to next immediately */
+tv.addEventListener('click', ()=>{
+  const next = pickNextVideo();
+  setVideoSrc(next);
+});
+
+/* ======== FLASH IMAGE over TV (every 2.5 minutes for 0.5s) ======== */
+const FLASH_INTERVAL = FLASH_INTERVAL_MS;
+const FLASH_DUR = FLASH_DURATION_MS;
+let flashTimer = null;
+function doFlashOnce(){
+  // animate flashImg opacity to 1, then back
+  flashImg.style.transition = `opacity 80ms linear`;
+  flashImg.style.opacity = '1';
+  // keep tvStatic and globalStatic still visible above flash, as requested (they are)
+  setTimeout(()=>{
+    flashImg.style.opacity = '0';
+  }, FLASH_DUR);
+}
+function scheduleFlash(){
+  if (flashTimer) clearInterval(flashTimer);
+  // set initial delay such that first flash occurs after FLASH_INTERVAL from now
+  flashTimer = setInterval(()=>{
+    doFlashOnce();
+  }, FLASH_INTERVAL);
+  // run first flash after FLASH_INTERVAL as well automatically
+  // (no immediate flash on page load)
+}
+scheduleFlash();
+
+/* ======== STARFIELD (canvas) ======== */
 const sCtx = starCanvas.getContext('2d');
 let stars = [];
 function initStars(){
@@ -317,7 +392,7 @@ function initStars(){
     stars.push({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      z: Math.random(), // depth
+      z: Math.random(),
       size: (Math.random() * 1.8) + 0.6,
       phase: Math.random() * Math.PI * 2,
       speed: 0.9 + Math.random() * 1.8
@@ -326,8 +401,9 @@ function initStars(){
 }
 initStars();
 
-/* pointer / tilt */
-let pointer = {x:0.5, y:0.5}, tilt = {x:0.5, y:0.5};
+/* pointer / device tilt for parallax */
+let pointer = {x:0.5, y:0.5};
+let tilt = {x:0.5, y:0.5};
 function updatePointer(e){
   const cx = (e.clientX ?? (e.touches && e.touches[0].clientX) ?? window.innerWidth/2) / window.innerWidth;
   const cy = (e.clientY ?? (e.touches && e.touches[0].clientY) ?? window.innerHeight/2) / window.innerHeight;
@@ -335,20 +411,20 @@ function updatePointer(e){
 }
 window.addEventListener('mousemove', updatePointer, { passive:true });
 window.addEventListener('touchmove', updatePointer, { passive:true });
-window.addEventListener('deviceorientation', (ev)=> {
+window.addEventListener('deviceorientation', (ev)=>{
   if (ev.gamma == null) return;
   tilt.x = (ev.gamma + 90) / 180;
   tilt.y = (ev.beta + 180) / 360;
 }, { passive:true });
 
-/* draw stars */
+/* draw stars per frame (with twinkle + hue oscillation) */
 function drawStars(now){
   const ctx = sCtx;
   const w = starCanvas.width / (devicePixelRatio || 1);
   const h = starCanvas.height / (devicePixelRatio || 1);
   ctx.clearRect(0,0,w,h);
-  const cx = (pointer.x * 2 - 1) + (tilt.x - 0.5) * 0.6;
-  const cy = (pointer.y * 2 - 1) + (tilt.y - 0.5) * 0.6;
+  const cx = (pointer.x *2 -1) + (tilt.x - 0.5) * 0.6;
+  const cy = (pointer.y *2 -1) + (tilt.y - 0.5) * 0.6;
   for (let s of stars){
     const depth = s.z;
     const ox = -cx * (1.6 - depth * 1.2) * (18 * (1 - depth));
@@ -358,23 +434,22 @@ function drawStars(now){
     const t = now / 1000 * s.speed;
     const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t + s.phase));
     const r = s.size * (0.8 + tw);
-    // hue oscillation (fast for stars)
-    const hue = 210 + Math.sin(now / 300 * 3 + s.phase) * 110;
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
+    const hue = 210 + Math.sin(now / 300 * 3 + s.phase) * 110; // blue->red
+    const grad = ctx.createRadialGradient(x,y,0,x,y,r*2);
     grad.addColorStop(0, `hsla(${hue},95%,80%,${0.95*tw})`);
     grad.addColorStop(0.6, `hsla(${hue},80%,60%,${0.25*tw})`);
     grad.addColorStop(1, `rgba(0,0,0,0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.arc(x,y,r,0,Math.PI*2);
     ctx.fill();
   }
 }
 
-/* ============== GLOBAL STATIC (overlay) ============== */
+/* ======== GLOBAL STATIC (overlay) ======== */
 const gCtx = globalStatic.getContext('2d');
+let globalNoiseLast = 0;
 let globalDrift = 0;
-let lastGlobalNoise = 0;
 function drawGlobalNoise(){
   const w = globalStatic.width / (devicePixelRatio || 1);
   const h = globalStatic.height / (devicePixelRatio || 1);
@@ -386,19 +461,9 @@ function drawGlobalNoise(){
     d[i+3]= 6 + Math.floor(Math.random()*10);
   }
   gCtx.putImageData(img,0,0);
-  // apply upward CSS transform to simulate slow drift
-}
-function updateGlobalStatic(now){
-  if (now - lastGlobalNoise > 120) {
-    drawGlobalNoise();
-    lastGlobalNoise = now;
-  }
-  // vertical drift via CSS transform (small)
-  globalDrift = (globalDrift - 0.2) % (window.innerHeight * 0.5);
-  globalStatic.style.transform = `translateY(${globalDrift}px)`;
 }
 
-/* ============== TV-local static (fast, stronger) ============== */
+/* ======== TV-local static (faster, stronger) ======== */
 const tCtx = tvStaticCanvas.getContext('2d');
 let lastTvNoise = 0;
 function drawTvNoise(){
@@ -419,36 +484,18 @@ function drawTvNoise(){
   }
 }
 
-/* ramp tv static used on channel switch */
-function rampTvStatic(targetOpacity=0.45, ms=180){
-  const initial = parseFloat(tvStaticCanvas.style.opacity || 0.08);
-  const start = performance.now();
-  return new Promise(res=>{
-    function step(t){
-      const p = Math.min(1,(t - start)/ms);
-      const eased = p < 0.5 ? (2*p*p) : (-1 + (4 - 2*p)*p);
-      tvStaticCanvas.style.opacity = initial + (targetOpacity - initial) * eased;
-      if (p < 1) requestAnimationFrame(step);
-      else {
-        setTimeout(()=> { tvStaticCanvas.style.opacity = initial; res(); }, 120);
-      }
-    }
-    requestAnimationFrame(step);
-  });
-}
-
-/* ============== Parallax & SVG movement ============== */
-function updateParallax(now){
-  const cx = (pointer.x * 2 - 1) + (tilt.x - 0.5) * 0.6;
-  const cy = (pointer.y * 2 - 1) + (tilt.y - 0.5) * 0.6;
-  const sx = cx * -8; const sy = cy * -10;
-  const gx = cx * 8; const gy = cy * 10;
+/* ======== PARALLAX for SVGs & TV ======== */
+function updateParallax(){
+  const cx = (pointer.x *2 -1) + (tilt.x - 0.5) * 0.6;
+  const cy = (pointer.y *2 -1) + (tilt.y - 0.5) * 0.6;
+  const sx = cx * -8, sy = cy * -10;
+  const gx = cx * 8, gy = cy * 10;
   paintCan.style.transform = `translate3d(${sx}px, ${sy}px, 0)`;
   glueBottle.style.transform = `translate3d(${gx}px, ${gy}px, 0)`;
   tv.style.transform = `translateZ(40px) rotateX(${1.2 - cy * 0.6}deg) rotateY(${cx * 1.2}deg)`;
 }
 
-/* ============== Color oscillation (SVGs opposite phase) ============== */
+/* ======== SVG color oscillations (SVGs opposite-phase) ======== */
 const svgPhaseOffset = Math.PI;
 function updateSvgColors(now){
   const t = now / 2200;
@@ -460,7 +507,7 @@ function updateSvgColors(now){
   glueBottle.style.setProperty('--c2', `hsl(${(glueHue+40)%360} 95% 45% / 0.85)`);
 }
 
-/* ============== TV glow from audio analyser ============== */
+/* ======== TV glow pulsing via analyser (or fallback breathing) ======== */
 function updateTvGlow(){
   let level = 0;
   if (analyser && dataArray){
@@ -478,64 +525,38 @@ function updateTvGlow(){
   document.documentElement.style.setProperty('--tv-glow-level', String(level));
 }
 
-/* ============== Unified animation loop ============== */
-let lastTvNoiseTime = 0;
+/* ======== Unified animation loop ======== */
+let lastGlobalTick = 0;
+let lastTvTick = 0;
 function animate(now){
-  // stars
+  // starfield
   drawStars(now);
-  // global static (draw less often)
-  updateGlobalStatic(now);
-  // tv static draw faster
-  if (!lastTvNoiseTime || (now - lastTvNoiseTime) > 60) {
-    drawTvNoise();
-    lastTvNoiseTime = now;
+
+  // global static (less often)
+  if (!lastGlobalTick || now - lastGlobalTick > 120) {
+    drawGlobalNoise();
+    lastGlobalTick = now;
   }
-  // parallax & colors & glow
-  updateParallax(now);
+  // vertical drift for global static
+  globalDrift = (globalDrift - 0.2) % (window.innerHeight * 0.5);
+  globalStatic.style.transform = `translateY(${globalDrift}px)`;
+
+  // tv static - faster
+  if (!lastTvTick || now - lastTvTick > 60){
+    drawTvNoise();
+    lastTvTick = now;
+  }
+
+  // parallax & colors & tv glow
+  updateParallax();
   updateSvgColors(now);
   updateTvGlow();
+
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
 
-/* ============== CRT "smack" glitch scheduling ============== */
+/* ======== CRT "smack" scheduling (random ~45-90s) ======== */
 function scheduleSmack(){
-  const delay = 45000 + Math.random() * 45000; // 45-90s
-  setTimeout(()=> { doSmack(); scheduleSmack(); }, delay);
-}
-function doSmack(){
-  stage.classList.add('glitch');
-  rampTvStatic(0.6, 120).catch(()=>{});
-  setTimeout(()=> stage.classList.remove('glitch'), 420 + Math.random() * 200);
-}
-scheduleSmack();
-
-/* ============== keyboard & cleanup ============== */
-window.addEventListener('keydown', (e)=>{
-  if (e.key === 'n' || e.key === 'N') { playSongIndex(currentSong+1); }
-  if (e.key === ' ') { e.preventDefault(); nextChannel(); }
-});
-window.addEventListener('pagehide', ()=> {
-  try { audio && audio.pause(); } catch(e){}
-});
-
-/* ============== Helper functions ============== */
-/* Swap channel helper used earlier */
-function nextChannel(){ showChannel(currentVid + 1); }
-
-/* Ensure tv-local canvas is sized to tv element */
-function ensureTvCanvasSize(){ resizeTvCanvas(); }
-window.addEventListener('resize', ensureTvCanvasSize);
-
-/* Re-init stars when needed */
-let resizeTimeout;
-window.addEventListener('resize', ()=> {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(()=> { initStars(); }, 300);
-});
-
-/* ================== Done ================== */
-/* If autoplay blocked, tap/click once to unlock audio+video and start analyser-driven glow */
-</script>
-</body>
-</html>
+  const delay = 45000 + Math.random() * 45000;
+  setTimeout(()=> { doSmack
