@@ -3,124 +3,219 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PGVERT</title>
-<meta property="og:title" content="PGVERT" />
-<meta name="description" content="Paint + Glue VERT — VHS fusion with interactive TV & music" />
+<title>PGVERT2</title>
+<meta property="og:title" content="PGVERT2" />
+<meta name="description" content="PGVERT2 — Paint + Glue VERT — VHS fusion with interactive TV & music" />
 <style>
-html,body{
-  margin:0;
-  height:100%;
-  background:radial-gradient(circle at center,#000010 0%,#000 100%);
-  color:#fff;
-  font-family:'Courier New',monospace;
-  overflow:hidden;
-}
+  :root{
+    --static-opacity: 0.08;
+    --svg-glow-amp: 1;
+  }
 
-/* twinkling stars + vhs haze */
-body::before,body::after{
-  content:"";
-  position:fixed;inset:0;
-  background:
-    radial-gradient(white 1px,transparent 1px) 0 0/3px 3px,
-    radial-gradient(rgba(255,255,255,.2) 1px,transparent 1px) 1.5px 1.5px/3px 3px;
-  opacity:.05;
-  animation:twinkle 4s linear infinite;
-  z-index:-2;
-}
-@keyframes twinkle{0%,100%{opacity:.05;}50%{opacity:.1;}}
+  html,body{
+    height:100%;
+    width:100%;
+    margin:0;
+    background:#000;
+    overflow:hidden;
+    font-family: 'Courier New', monospace;
+    color:#fff;
+  }
 
-.scanlines{
-  position:fixed;inset:0;
-  background:repeating-linear-gradient(
-    to bottom,
-    rgba(255,255,255,0.03) 0px,
-    rgba(0,0,0,0.07) 1px,
-    transparent 2px);
-  mix-blend-mode:overlay;
-  pointer-events:none;
-  z-index:3;
-}
+  /* vignette base */
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0;
+    background: radial-gradient(circle at 50% 40%, rgba(20,6,20,0.12) 0%, rgba(0,0,0,0.95) 65%);
+    pointer-events:none;
+  }
 
-/* main stage */
-.main{
-  position:relative;
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
+  /* FULLSCREEN STATIC CANVAS */
+  #staticCanvas{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:5;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    opacity:var(--static-opacity);
+    transform: translateZ(0);
+    will-change: opacity;
+  }
 
-/* SVG control area */
-.svg-controls{
-  position:fixed;
-  top:5%;
-  left:50%;
-  transform:translateX(-50%);
-  display:flex;
-  gap:24px;
-  z-index:10;
-}
-.svg-controls svg{
-  filter:drop-shadow(0 0 8px #ff66ff);
-  cursor:pointer;
-  transition:transform .2s ease;
-}
-.svg-controls svg:hover{transform:translateY(-2px) scale(1.03);}
+  /* subtle scanlines above everything */
+  .scanlines {
+    position:fixed; inset:0; pointer-events:none; z-index:6; mix-blend-mode:overlay;
+    background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,0.02) 0px, rgba(0,0,0,0.08) 1px, transparent 3px);
+    opacity:0.22;
+  }
 
-/* bottom TV */
-#tvContainer{
-  position:fixed;
-  bottom:40px;
-  left:50%;
-  transform:translateX(-50%);
-  width:280px;
-  height:160px;
-  background:#111;
-  border-radius:6px;
-  overflow:hidden;
-  box-shadow:0 0 24px rgba(255,100,255,0.6);
-  z-index:5;
-}
-#tvVideo{width:100%;height:100%;object-fit:cover;}
-#tvStatic,#tvNoise{
-  position:absolute;inset:0;pointer-events:none;
-}
-#tvStatic{background:#000;opacity:0;z-index:6;}
-#tvNoise{opacity:.08;mix-blend-mode:screen;z-index:7;}
+  /* STARS */
+  .stars {
+    position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden;
+    transform-style:preserve-3d;
+  }
+  .star {
+    position:absolute;
+    width:2px; height:2px; border-radius:50%;
+    background: white;
+    opacity:0.8;
+    transform-origin:center;
+    will-change: transform, opacity;
+    mix-blend-mode:screen;
+    box-shadow: 0 0 6px rgba(255,255,255,0.06);
+  }
+  @keyframes star-tw {
+    0%,100%{ opacity:0.22; transform: scale(0.75); }
+    50%{ opacity:1; transform: scale(1.5); }
+  }
+
+  /* STAGE / LAYOUT */
+  .stage {
+    position:relative; z-index:3; height:100vh; width:100vw;
+    display:flex; align-items:center; justify-content:center; gap:48px;
+    padding:48px; box-sizing:border-box; perspective:1100px; flex-wrap:nowrap;
+  }
+
+  .controls {
+    display:flex; align-items:center; justify-content:center; gap:36px;
+    width: min(46vw, 560px);
+    pointer-events:auto;
+    transform-style:preserve-3d;
+  }
+
+  .tv-wrap { display:flex; align-items:center; justify-content:center; transform-style:preserve-3d; }
+
+  .tv {
+    width: min(60vw, 720px);
+    height: calc(min(60vw, 720px) * 0.66);
+    max-width: 800px;
+    max-height: 520px;
+    background: #060607;
+    border-radius: 10px;
+    box-shadow: 0 30px 90px rgba(0,0,0,0.8), 0 0 40px rgba(255,80,200,0.06);
+    overflow:hidden;
+    border: 3px solid rgba(255,255,255,0.03);
+    transform: translateZ(60px) rotateX(1.5deg);
+    transition: transform 420ms cubic-bezier(.2,.9,.2,1);
+    will-change: transform, box-shadow, filter;
+    position:relative;
+  }
+  .tv video { width:100%; height:100%; object-fit:cover; display:block; }
+
+  /* Buttons (SVG containers) */
+  .btn {
+    width: 180px; height: 180px; min-width:120px; min-height:120px;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: 14px;
+    cursor:pointer; transition: transform 220ms ease, filter 220ms ease;
+    transform-origin:center; user-select:none;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    will-change: transform, filter;
+  }
+  .btn svg { width: 76%; height: 76%; display:block; }
+
+  .btn:hover { transform: translateY(-6px) scale(1.04); filter: drop-shadow(0 18px 28px rgba(0,0,0,0.65)); }
+  .btn:active { transform: scale(0.98); }
+
+  .tilt-left { transform-origin: center right; transform: rotateY(6deg) translateZ(20px); }
+  .tilt-right { transform-origin: center left; transform: rotateY(-6deg) translateZ(20px); }
+
+  /* mobile responsiveness: stack and center */
+  @media (max-width:900px){
+    .stage { flex-direction: column; gap:18px; padding:22px; }
+    .controls { width: 92vw; gap: 18px; }
+    .btn { width: 44vw; height: 44vw; }
+    .tv { width: 92vw; height: calc(92vw * 0.56); }
+    .tilt-left, .tilt-right { transform: none; }
+  }
+
+  /* GLOW system for SVGs & stars; CSS vars updated by JS */
+  .glow {
+    --c1: rgba(60,120,255,0.9);
+    --c2: rgba(255,40,120,0.9);
+    filter: drop-shadow(0 0 calc(6px * var(--svg-glow-amp)) var(--c1))
+            drop-shadow(0 0 calc(18px * var(--svg-glow-amp)) var(--c2));
+    transition: filter 120ms linear;
+  }
+
+  .star.glow {
+    box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 18px var(--star-color, rgba(120,160,255,0.6));
+    transition: box-shadow 160ms linear;
+  }
+
+  /* TV glitch styles (short wobble + color split) */
+  .tv.glitch {
+    animation: tv-snap 320ms cubic-bezier(.2,.9,.2,1);
+    filter: contrast(1.05) saturate(1.1) hue-rotate(6deg);
+  }
+  @keyframes tv-snap {
+    0% { transform: translateY(0) scale(1) skewX(0deg); }
+    20% { transform: translateY(-10px) scale(1.006) skewX(-0.75deg); }
+    50% { transform: translateY(8px) scale(0.996) skewX(0.6deg); }
+    100% { transform: translateY(0) scale(1) skewX(0deg); }
+  }
+  .tv.glitch::after {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    mix-blend-mode:screen; opacity:0.25;
+    background: linear-gradient(90deg, rgba(255,0,80,0.05), rgba(0,120,255,0.05));
+    animation: rgb-split 320ms linear;
+  }
+  @keyframes rgb-split {
+    0% { transform: translateX(0); opacity:0; }
+    30% { transform: translateX(-6px); opacity:1; }
+    60% { transform: translateX(6px); opacity:1; }
+    100% { transform: translateX(0); opacity:0; }
+  }
+
+  /* small accessibility text hidden off-screen */
+  .sr-only { position:absolute; left:-9999px; }
 </style>
 </head>
 <body>
-<div class="scanlines"></div>
-<div class="main">
+  <!-- Starfield -->
+  <div class="stars" id="stars"></div>
 
-  <!-- existing Paint + Glue SVGs -->
-  <div class="svg-controls">
-    <!-- Paint Can (Play / Pause) -->
-    <svg id="paintCan" width="60" height="60" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
-      <rect x="14" y="22" width="36" height="30" rx="6" ry="6" fill="rgba(255,255,255,0.05)" />
-      <path d="M20 22v-4a12 12 0 0 1 24 0v4" />
-      <circle cx="32" cy="37" r="8" fill="rgba(255,255,255,0.1)" />
-    </svg>
+  <!-- Stage -->
+  <div class="stage" id="stage">
+    <div class="controls" id="leftControls">
+      <div class="btn glow tilt-left" id="paintCan" aria-label="Play or pause audio">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" role="img" aria-hidden="true">
+          <rect x="10" y="20" width="44" height="34" rx="6" fill="rgba(255,255,255,0.04)"/>
+          <path d="M16 20v-6a16 16 0 0 1 32 0v6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="32" cy="36" r="7" fill="rgba(255,255,255,0.12)" />
+        </svg>
+      </div>
+    </div>
 
-    <!-- Glue Bottle (Next Track) -->
-    <svg id="glueBottle" width="48" height="48" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
-      <polygon points="24,18 40,18 38,58 26,58" fill="rgba(255,255,255,0.05)" />
-      <rect x="28" y="10" width="8" height="8" rx="2" ry="2" fill="rgba(255,255,255,0.1)" />
-      <path d="M28 34h8" />
-    </svg>
+    <div class="tv-wrap">
+      <div class="tv" id="tv">
+        <video id="tvVideo" autoplay muted playsinline></video>
+      </div>
+    </div>
+
+    <div class="controls" id="rightControls">
+      <div class="btn glow tilt-right" id="glueBottle" aria-label="Next track">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" role="img" aria-hidden="true">
+          <path d="M20 18h24l2 36H18z" fill="rgba(255,255,255,0.04)"/>
+          <rect x="28" y="8" width="8" height="10" rx="2" fill="rgba(255,255,255,0.1)"/>
+          <path d="M28 34h8" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
   </div>
 
-  <!-- TV with glow + VHS overlay -->
-  <div id="tvContainer">
-    <video id="tvVideo" autoplay muted loop playsinline></video>
-    <canvas id="tvStatic"></canvas>
-    <canvas id="tvNoise"></canvas>
-  </div>
+  <div class="scanlines" aria-hidden="true"></div>
 
-</div>
+  <canvas id="staticCanvas" aria-hidden="true"></canvas>
+
+  <div class="sr-only">Paint can play/pause. Glue bottle next track. Click TV to change channel.</div>
+
 <script>
-/* ======= MEDIA LISTS (root-level filenames) ======= */
+/* ======================= MEDIA LISTS ======================= */
+/* Drop your media files in the same folder as this index.html */
 const songs = [
   "Frtruck.m4a",
   "Bleep.m4a",
@@ -130,44 +225,45 @@ const songs = [
   "LilSkTCh2.m4a",
   "G U L P.m4a"
 ];
-
 const videos = [
   "My Movie 54.mov",
   "IMG_3838.MOV",
   "MoshUp_0021~2.mp4"
 ];
+/* ========================================================== */
 
-/* ======= AUDIO PLAYER ======= */
-let currentSong = 0;
-let audio = new Audio(songs[currentSong]);
-audio.preload = "auto";
-audio.volume = 0.8;
-audio.loop = false; // we'll manually advance to loop playlist
+const starsEl = document.getElementById('stars');
+const tv = document.getElementById('tv');
+const tvVideo = document.getElementById('tvVideo');
+const paintCan = document.getElementById('paintCan');
+const glueBottle = document.getElementById('glueBottle');
+const staticCanvas = document.getElementById('staticCanvas');
 
-function playSongIndex(idx) {
-  currentSong = ((idx % songs.length) + songs.length) % songs.length;
-  audio.pause();
+let audio, currentSong = 0, currentVid = 0;
+
+/* ====== Audio player (basic playlist) ====== */
+function initAudio(){
   audio = new Audio(songs[currentSong]);
-  audio.preload = "auto";
+  audio.preload = 'auto';
   audio.volume = 0.8;
-  audio.addEventListener("ended", () => playSongIndex(currentSong + 1));
-  audio.play().catch(()=>{ /* autoplay blocked — wait for interaction */ });
-  pulseControl(paintCan);
+  audio.addEventListener('ended', ()=> playSongIndex(currentSong+1));
 }
-function nextSong() { playSongIndex(currentSong + 1); }
+function playSongIndex(idx){
+  currentSong = ((idx % songs.length) + songs.length) % songs.length;
+  if (audio) audio.pause();
+  audio = new Audio(songs[currentSong]);
+  audio.preload='auto'; audio.volume=0.8;
+  audio.addEventListener('ended', ()=> playSongIndex(currentSong+1));
+  audio.play().catch(()=>{});
+}
+initAudio();
 
-audio.addEventListener("ended", () => playSongIndex(currentSong + 1));
-
-/* try autopaly after 1s (desktop & some browsers allow) */
-setTimeout(()=> {
-  audio.play().catch(()=>{ /* blocked — will wait for tap on paintCan */ });
-}, 1000);
-
-/* one-time unlock on any user gesture attempt */
+/* unlock audio on first interaction */
 let unlocked = false;
-function tryUnlockAudio() {
+function tryUnlockAudio(){
   if (unlocked) return;
   unlocked = true;
+  if (!audio) initAudio();
   audio.play().catch(()=>{});
   window.removeEventListener('pointerdown', tryUnlockAudio);
   window.removeEventListener('keydown', tryUnlockAudio);
@@ -175,203 +271,234 @@ function tryUnlockAudio() {
 window.addEventListener('pointerdown', tryUnlockAudio, { once:true });
 window.addEventListener('keydown', tryUnlockAudio, { once:true });
 
-/* ======= UI ELEMENTS ======= */
-const paintCan = document.getElementById('paintCan');
-const glueBottle = document.getElementById('glueBottle');
-const tvContainer = document.getElementById('tvContainer');
-
-/* paint can toggles play/pause */
-paintCan.addEventListener('click', async (e) => {
-  e.stopPropagation();
-  try {
-    if (!audio || audio.paused) {
-      await audio.play();
-    } else {
-      audio.pause();
-    }
-  } catch(e){
-    // recreate and play
-    playSongIndex(currentSong);
-  }
-  pulseControl(paintCan);
-});
-
-/* glue bottle = next song */
-glueBottle.addEventListener('click', (e) => {
-  e.stopPropagation();
-  nextSong();
-  pulseControl(glueBottle);
-});
-
-/* helper pulse */
-function pulseControl(el){
-  if(!el) return;
-  el.style.transform = 'translateY(-4px) scale(1.04)';
-  setTimeout(()=> el.style.transform = '', 160);
-}
-
-/* ======= TV VIDEO + CHANNELS ======= */
-const tvVideo = document.getElementById('tvVideo');
-const tvStatic = document.getElementById('tvStatic');
-const tvNoise = document.getElementById('tvNoise');
-
-let currentVid = 0;
+/* ====== Video channels (offscreen preload) ====== */
 let videoEls = [];
-
-/* create offscreen HTMLVideoElements for channels to ensure readyState updates */
-for (let i = 0; i < videos.length; i++) {
+for (let i=0;i<videos.length;i++){
   const v = document.createElement('video');
   v.src = videos[i];
-  v.muted = true;
-  v.loop = true;
-  v.playsInline = true;
-  v.preload = 'auto';
-  v.crossOrigin = 'anonymous';
+  v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
   videoEls.push(v);
 }
-
-/* size canvases correctly (use devicePixelRatio) */
-function resizeTVCanvases(){
-  const rect = tvContainer.getBoundingClientRect();
-  const w = Math.max(2, Math.round(rect.width));
-  const h = Math.max(2, Math.round(rect.height));
-  [tvStatic, tvNoise].forEach(c => {
-    c.width = w * devicePixelRatio;
-    c.height = h * devicePixelRatio;
-    c.style.width = w + 'px';
-    c.style.height = h + 'px';
-    const ctx = c.getContext('2d');
-    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-  });
-}
-window.addEventListener('resize', resizeTVCanvases);
-setTimeout(resizeTVCanvases, 50);
-
-/* load and show initial channel */
 async function showChannel(i){
   currentVid = ((i % videoEls.length) + videoEls.length) % videoEls.length;
-  // show static while switching
-  await showStatic(520);
-  try {
+  rampStatic(0.35, 140).then(()=>{
     tvVideo.src = videoEls[currentVid].src;
-    await tvVideo.play().catch(()=>{/* blocked until interaction */});
-  } catch(e){}
-  // small glitch pulse
-  flashTVGlow();
+    tvVideo.play().catch(()=>{});
+  });
 }
-
-/* next video */
-function nextChannel(){
-  showChannel(currentVid + 1);
-}
-
-/* click on visible tv to change */
-tvVideo.addEventListener('click', (e) => {
-  e.stopPropagation();
-  nextChannel();
-});
-
-/* ensure initial play attempt */
-(async function initVideos(){
-  try {
-    // attempt to play offscreen items (may be blocked)
-    for (let v of videoEls) {
-      try { v.load(); v.play().catch(()=>{}); } catch(e){}
-    }
-  } catch(e){}
-  // set visible src to first
+function nextChannel(){ showChannel(currentVid + 1); }
+tv.addEventListener('click', (e)=> { e.stopPropagation(); nextChannel(); });
+(async function tryInitVideos(){
+  try{
+    for (let v of videoEls){ v.load(); v.play().catch(()=>{}); }
+  }catch(e){}
   try { tvVideo.src = videoEls[0].src; await tvVideo.play().catch(()=>{}); } catch(e){}
 })();
 
-/* ======= STATIC EFFECT (0.5s) ======= */
-function showStatic(ms = 500){
-  return new Promise(res => {
-    const ctx = tvStatic.getContext('2d');
-    resizeTVCanvases();
-    const w = tvStatic.width / devicePixelRatio;
-    const h = tvStatic.height / devicePixelRatio;
-    let frames = Math.max(1, Math.floor(ms / 30));
-    let f = 0;
-    tvStatic.style.opacity = '1';
-    function drawFrame(){
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      for (let i=0;i<data.length;i+=4){
-        const v = (Math.random() > 0.92) ? 255 : Math.floor(Math.random()*90);
-        data[i]=data[i+1]=data[i+2]=v;
-        data[i+3]=255;
-      }
-      ctx.putImageData(img, 0, 0);
-      f++;
-      if (f < frames) requestAnimationFrame(drawFrame);
+/* ====== UI interactions ====== */
+paintCan.addEventListener('click', async (e)=>{
+  e.stopPropagation();
+  if (!audio) initAudio();
+  try { if (audio.paused) await audio.play(); else audio.pause(); } catch(e){ playSongIndex(currentSong); }
+  pulse(paintCan);
+});
+glueBottle.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  playSongIndex(currentSong+1);
+  pulse(glueBottle);
+});
+function pulse(el){
+  el.style.transition = 'transform 140ms ease';
+  el.style.transform = 'translateY(-8px) scale(1.03)';
+  setTimeout(()=> el.style.transform = '', 160);
+}
+
+/* ====== STARFIELD generation ====== */
+const STAR_COUNT = Math.min(220, Math.floor(window.innerWidth * window.innerHeight / 7000));
+let stars = [];
+function makeStars(){
+  starsEl.innerHTML = '';
+  stars = [];
+  for (let i=0;i<STAR_COUNT;i++){
+    const depth = Math.random(); // 0..1
+    const el = document.createElement('div');
+    el.className = 'star glow';
+    const size = Math.max(1, Math.round((1 - depth) * 3));
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    const left = Math.random()*100;
+    const top = Math.random()*100;
+    el.style.left = left + 'vw';
+    el.style.top = top + 'vh';
+    const dur = 1.6 + Math.random()*2.4;
+    el.style.animation = `star-tw ${dur}s ${Math.random()*1.6}s infinite ease-in-out`;
+    el.dataset.depth = depth;
+    el.dataset.phase = Math.random() * Math.PI * 2;
+    starsEl.appendChild(el);
+    stars.push(el);
+  }
+}
+makeStars();
+let rezTimer;
+window.addEventListener('resize', ()=>{ clearTimeout(rezTimer); rezTimer = setTimeout(()=>{ makeStars(); resizeStatic(); }, 400); });
+
+/* ====== PARALLAX: pointer & device motion ====== */
+let pointer = {x:0.5,y:0.5}, tilt = {x:0.5,y:0.5};
+function onPointerMove(e){
+  const cx = (e.clientX ?? (e.touches && e.touches[0].clientX) ?? window.innerWidth/2) / window.innerWidth;
+  const cy = (e.clientY ?? (e.touches && e.touches[0].clientY) ?? window.innerHeight/2) / window.innerHeight;
+  pointer.x = cx; pointer.y = cy;
+}
+window.addEventListener('mousemove', onPointerMove, { passive:true });
+window.addEventListener('touchmove', onPointerMove, { passive:true });
+
+window.addEventListener('deviceorientation', (ev)=>{
+  if (ev.gamma === null) return;
+  const gx = (ev.gamma + 90) / 180;
+  const gy = (ev.beta + 180) / 360;
+  tilt.x = gx; tilt.y = gy;
+}, { passive:true });
+
+function updateParallax(){
+  const cx = (pointer.x * 2 - 1) + (tilt.x - 0.5) * 0.6;
+  const cy = (pointer.y * 2 - 1) + (tilt.y - 0.5) * 0.6;
+
+  for (let s of stars){
+    const d = parseFloat(s.dataset.depth);
+    const fx = -cx * (1.6 - d * 1.2) * (10 * (1 - d));
+    const fy = -cy * (1.6 - d * 1.2) * (6 * (1 - d));
+    s.style.transform = `translate3d(${fx}px, ${fy}px, 0)`;
+    const phase = parseFloat(s.dataset.phase || 0);
+    const t = performance.now() / 600;
+    const hue = Math.round(240 + Math.sin(t * 4 + phase) * 140);
+    s.style.setProperty('--star-color', `hsl(${hue} 90% 65% / 0.55)`);
+  }
+
+  const leftMoveX = cx * -18;
+  const leftMoveY = cy * -8;
+  const rightMoveX = cx * 18;
+  const rightMoveY = cy * 8;
+  paintCan.style.transform = `translate3d(${leftMoveX}px, ${leftMoveY}px, ${18}px) rotateY(6deg)`;
+  glueBottle.style.transform = `translate3d(${rightMoveX}px, ${rightMoveY}px, ${18}px) rotateY(-6deg)`;
+
+  tv.style.transform = `translateZ(60px) rotateX(${1.2 - cy * 0.6}deg) rotateY(${cx * 1.2}deg)`;
+
+  requestAnimationFrame(updateParallax);
+}
+requestAnimationFrame(updateParallax);
+
+/* ====== COLOR OSCILLATION: SVGs (opposite phase) ====== */
+const svgPhaseOffset = Math.PI;
+function colorLoop(){
+  const now = performance.now();
+  const t = now / 2000;
+  const paintHue = 210 + Math.sin(t * 0.9) * 110; // slower
+  const glueHue = 210 + Math.sin(t * 0.9 + svgPhaseOffset) * 110;
+  const paintC1 = `hsl(${paintHue} 95% 65% / 0.95)`;
+  const paintC2 = `hsl(${(paintHue+40)%360} 95% 45% / 0.85)`;
+  const glueC1 = `hsl(${glueHue} 95% 65% / 0.95)`;
+  const glueC2 = `hsl(${(glueHue+40)%360} 95% 45% / 0.85)`;
+
+  paintCan.style.setProperty('--c1', paintC1);
+  paintCan.style.setProperty('--c2', paintC2);
+  glueBottle.style.setProperty('--c1', glueC1);
+  glueBottle.style.setProperty('--c2', glueC2);
+  requestAnimationFrame(colorLoop);
+}
+requestAnimationFrame(colorLoop);
+
+/* ====== FULLPAGE STATIC (canvas) ====== */
+const sCtx = staticCanvas.getContext && staticCanvas.getContext('2d');
+function resizeStatic(){
+  const dpr = window.devicePixelRatio || 1;
+  staticCanvas.width = Math.ceil(window.innerWidth * dpr);
+  staticCanvas.height = Math.ceil(window.innerHeight * dpr);
+  staticCanvas.style.width = window.innerWidth + 'px';
+  staticCanvas.style.height = window.innerHeight + 'px';
+  if (sCtx) sCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+resizeStatic();
+
+let staticAnimId;
+function drawStaticFrame(intensity = 1.0){
+  if (!sCtx) return;
+  const w = staticCanvas.width / (window.devicePixelRatio || 1);
+  const h = staticCanvas.height / (window.devicePixelRatio || 1);
+  const img = sCtx.createImageData(w, h);
+  const d = img.data;
+  for (let i=0;i<d.length;i+=4){
+    const v = (Math.random() > 0.986) ? 255 * intensity : Math.floor(Math.random()*160*intensity);
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 8 + Math.floor(Math.random()*18*intensity);
+  }
+  sCtx.putImageData(img,0,0);
+  if (Math.random() < 0.03 * intensity){
+    sCtx.fillStyle = `rgba(255,255,255,${0.01 * intensity})`;
+    const y = Math.floor(Math.random() * h);
+    sCtx.fillRect(0,y,w,1 + Math.floor(Math.random()*2));
+  }
+}
+function animateStatic(){
+  drawStaticFrame(0.9);
+  staticAnimId = requestAnimationFrame(animateStatic);
+}
+animateStatic();
+
+function rampStatic(targetOpacity=0.4, ms=260){
+  const start = performance.now();
+  const initial = parseFloat(getComputedStyle(staticCanvas).opacity) || 1.0;
+  const duration = ms;
+  return new Promise(res=>{
+    function step(t){
+      const p = Math.min(1,(t - start)/duration);
+      const eased = p < 0.5 ? (2*p*p) : (-1 + (4 - 2*p)*p);
+      const o = initial + (targetOpacity - initial) * eased;
+      staticCanvas.style.opacity = o;
+      drawStaticFrame(0.9 + eased*1.2);
+      if (p < 1) requestAnimationFrame(step);
       else {
-        // fade out quickly
-        setTimeout(()=> { tvStatic.style.opacity = '0'; res(); }, 60);
+        const backStart = performance.now();
+        const backDur = 220;
+        function stepBack(tt){
+          const pp = Math.min(1, (tt - backStart)/backDur);
+          const out = targetOpacity + (initial - targetOpacity) * pp;
+          staticCanvas.style.opacity = out;
+          if (pp < 1) requestAnimationFrame(stepBack);
+          else { staticCanvas.style.opacity = initial; res(); }
+        }
+        requestAnimationFrame(stepBack);
       }
     }
-    drawFrame();
+    requestAnimationFrame(step);
   });
 }
 
-/* ======= TV NOISE (subtle internal VHS grain) ======= */
-const nctx = tvNoise.getContext('2d');
-function drawNoiseFrame(){
-  resizeTVCanvases();
-  const w = tvNoise.width / devicePixelRatio;
-  const h = tvNoise.height / devicePixelRatio;
-  const img = nctx.createImageData(w,h);
-  const d = img.data;
-  for (let i=0;i<d.length;i+=4){
-    const v = Math.floor(Math.random()*200);
-    d[i]=d[i+1]=d[i+2]=v;
-    d[i+3]= 8 + Math.floor(Math.random()*40); // low alpha
-  }
-  nctx.putImageData(img,0,0);
-  // light horizontal jitter line occasionally
-  if (Math.random() < 0.08) {
-    nctx.fillStyle = "rgba(255,255,255,0.02)";
-    const y = Math.floor(Math.random() * h);
-    nctx.fillRect(0, y, w, 1 + Math.floor(Math.random()*2));
-  }
+/* ====== RANDOM CRT "SMACK" GLITCHES ====== */
+function scheduleGlitch(){
+  const delay = 45000 + Math.random() * 45000; // 45s - 90s
+  setTimeout(()=>{ doGlitch(); scheduleGlitch(); }, delay);
 }
-let noiseInterval = setInterval(drawNoiseFrame, 80);
-
-/* ======= TV GLOW / QUICK GLITCH PULSE ======= */
-function flashTVGlow(){
-  const orig = tvContainer.style.boxShadow;
-  tvContainer.style.boxShadow = "0 0 48px rgba(255,100,255,0.95)";
-  setTimeout(()=> { tvContainer.style.boxShadow = orig || "0 0 24px rgba(255,100,255,0.6)"; }, 160);
+function doGlitch(){
+  tv.classList.add('glitch');
+  rampStatic(0.45, 120).catch(()=>{});
+  setTimeout(()=> tv.classList.remove('glitch'), 420 + Math.floor(Math.random()*220));
 }
+scheduleGlitch();
 
-/* schedule random glitch pulses */
-function scheduleGlitches(){
-  const t = 1500 + Math.random()*8000;
-  setTimeout(()=>{
-    flashTVGlow();
-    scheduleGlitches();
-  }, t);
-}
-scheduleGlitches();
-
-/* ======= accessibility / keyboard ======= */
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'n' || e.key === 'N') nextSong();
-  if (e.key === ' '){
-    e.preventDefault();
-    nextChannel();
-  }
+/* ====== SAFETY: cleanup on pagehide ====== */
+window.addEventListener('pagehide', ()=> {
+  cancelAnimationFrame(staticAnimId);
+  try { audio && audio.pause(); } catch(e){}
+  try { tvVideo && tvVideo.pause(); } catch(e){}
 });
 
-/* ======= cleanup on unload ======= */
-window.addEventListener('pagehide', ()=>{
-  try { audio.pause(); } catch(e){}
-  try { tvVideo.pause(); } catch(e){}
-  clearInterval(noiseInterval);
+/* ====== small keyboard shortcuts ====== */
+window.addEventListener('keydown', (e)=>{
+  if (e.key === 'n' || e.key === 'N') { playSongIndex(currentSong+1); }
+  if (e.key === ' ') { e.preventDefault(); nextChannel(); }
 });
 
-/* ======= ensure tv container has pointer cursor (makes clickable obvious) ======= */
-tvContainer.style.cursor = 'pointer';
-
+/* That's it — enjoy PGVERT2! */
 </script>
 </body>
 </html>
