@@ -14,30 +14,30 @@
   }
   html,body{
     height:100%; width:100%; margin:0; padding:0;
-    background:#000; color:#fff; font-family: 'Courier New', monospace;
+    background:#050008; color:#fff; font-family: 'Courier New', monospace;
     overflow:hidden;
   }
 
-  /* background vignette */
+  /* background vignette (deep purple radial) */
   body::before{
     content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-    background: radial-gradient(circle at 50% 36%, rgba(18,8,20,0.12) 0%, rgba(0,0,0,0.98) 70%);
+    background: radial-gradient(circle at 50% 36%, rgba(28,8,36,0.18) 0%, rgba(0,0,0,0.98) 70%);
   }
 
-  /* STAR CANVAS (behind everything) */
+  /* STAR CANVAS (behind content) */
   #starCanvas { position:fixed; inset:0; z-index:1; width:100%; height:100%; pointer-events:none; }
 
   /* STAGE (center content) */
   .stage {
-    position:relative; z-index:4; height:100vh; width:100vw;
+    position:relative; z-index:3; height:100vh; width:100vw;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:28px; box-sizing:border-box; padding:36px;
     perspective:1200px;
   }
 
-  /* large SVG buttons (3x scale from earlier) */
+  /* big SVG buttons ( ~3x scale ) */
   .svg-btn {
-    width: 240px; height: 240px; min-width: 160px; min-height:160px;
+    width: 240px; height: 240px; min-width:160px; min-height:160px;
     display:flex; align-items:center; justify-content:center;
     border-radius:18px; background:rgba(255,255,255,0.02);
     box-shadow: 0 20px 40px rgba(0,0,0,0.6);
@@ -65,9 +65,9 @@
     will-change: transform, box-shadow, filter;
     display:flex; align-items:center; justify-content:center;
   }
-  .tv video { width:100%; height:100%; object-fit:cover; display:block; }
+  .tv video { width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1; }
 
-  /* TV-local static canvas (above video inside tv) */
+  /* TV-local static canvas inside TV (above video) */
   .tv canvas.tv-static { position:absolute; inset:0; width:100%; height:100%; z-index:12; pointer-events:none; mix-blend-mode:screen; opacity:0.08; }
 
   /* TV glow - animated via CSS var updated by JS */
@@ -78,28 +78,27 @@
     mix-blend-mode:screen;
   }
 
-  /* Fullscreen global static overlay canvas */
+  /* Fullscreen global static overlay canvas (above stage/content) */
   #globalStatic {
     position:fixed; inset:0; z-index:6; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen;
     opacity:var(--global-static-opacity); transform: translateZ(0);
+    will-change: transform, opacity;
   }
 
-  /* scanlines overlay (top layer) */
+  /* scanlines overlay above everything */
   .scanlines {
     position:fixed; inset:0; z-index:8; pointer-events:none; mix-blend-mode:overlay;
     background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,0.02) 0px, rgba(0,0,0,0.08) 1px, transparent 3px);
     opacity:0.18;
   }
 
-  /* glow for SVGs; --c1 and --c2 will be set by JS */
+  /* glow for SVGs; CSS var colors will be set by JS */
   .glow {
     transition: filter .12s linear;
   }
 
-  /* glitch wobble class for the stage when CRT smack happens */
-  .stage.glitch {
-    animation: stage-smack 360ms cubic-bezier(.2,.9,.2,1);
-  }
+  /* stage glitch wobble */
+  .stage.glitch { animation: stage-smack 360ms cubic-bezier(.2,.9,.2,1); }
   @keyframes stage-smack {
     0% { transform: translateY(0) }
     20% { transform: translateY(-10px) }
@@ -107,7 +106,7 @@
     100% { transform: translateY(0) }
   }
 
-  /* responsive tweaks */
+  /* responsive */
   @media (max-width:900px){
     .svg-btn { width: 40vw; height: 40vw; }
     .tv { width: 92vw; height: calc(92vw * 0.62); }
@@ -117,14 +116,13 @@
 </style>
 </head>
 <body>
-  <!-- starfield canvas (back) -->
+  <!-- starfield canvas (behind content) -->
   <canvas id="starCanvas" aria-hidden="true"></canvas>
 
   <!-- main stage center -->
   <div class="stage" id="stage" role="application" aria-label="PGVERT2 interactive TV">
     <!-- Paint can (top) -->
     <div id="paintCan" class="svg-btn glow" aria-label="Play/pause (paint can)">
-      <!-- stylized paint can -->
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" aria-hidden="true">
         <rect x="10" y="18" width="44" height="36" rx="6" fill="rgba(255,255,255,0.04)"/>
         <path d="M16 18v-6a16 16 0 0 1 32 0v6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -141,7 +139,6 @@
 
     <!-- Glue bottle (bottom) -->
     <div id="glueBottle" class="svg-btn glow" aria-label="Next track (glue bottle)">
-      <!-- stylized glue bottle -->
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.6" aria-hidden="true">
         <path d="M20 18h24l2 36H18z" fill="rgba(255,255,255,0.04)"/>
         <rect x="28" y="8" width="8" height="10" rx="2" fill="rgba(255,255,255,0.1)"/>
@@ -150,15 +147,13 @@
     </div>
   </div>
 
-  <!-- scanlines + global static overlay -->
   <div class="scanlines" aria-hidden="true"></div>
   <canvas id="globalStatic" aria-hidden="true"></canvas>
 
   <div class="sr-only">Paint can play/pause. Glue bottle next track. Click the TV to change channels.</div>
 
 <script>
-/* ================= CONFIG: media ================ */
-/* Put audio/video files alongside this HTML file */
+/* ================= CONFIG: media files ================= */
 const songs = [
   "Frtruck.m4a",
   "Bleep.m4a",
@@ -173,7 +168,7 @@ const videos = [
   "IMG_3838.MOV",
   "MoshUp_0021~2.mp4"
 ];
-/* ================================================ */
+/* ====================================================== */
 
 /* DOM refs */
 const starCanvas = document.getElementById('starCanvas');
@@ -185,9 +180,42 @@ const paintCan = document.getElementById('paintCan');
 const glueBottle = document.getElementById('glueBottle');
 const stage = document.getElementById('stage');
 
-/* audio setup + analyser for TV glow pulsing */
-let audio, audioContext, analyser, dataArray, sourceNode;
-let currentSong = 0;
+/* RESIZE helper for canvases (devicePixelRatio aware) */
+function resizeCanvas(canvas){
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.ceil(window.innerWidth * dpr);
+  canvas.height = Math.ceil(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* tv canvas resize (matches tv element) */
+function resizeTvCanvas(){
+  const rect = tv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  tvStaticCanvas.width = Math.ceil(rect.width * dpr);
+  tvStaticCanvas.height = Math.ceil(rect.height * dpr);
+  tvStaticCanvas.style.width = rect.width + 'px';
+  tvStaticCanvas.style.height = rect.height + 'px';
+  const ctx = tvStaticCanvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* initial resize */
+resizeCanvas(starCanvas);
+resizeCanvas(globalStatic);
+resizeTvCanvas();
+window.addEventListener('resize', ()=> {
+  resizeCanvas(starCanvas);
+  resizeCanvas(globalStatic);
+  resizeTvCanvas();
+  initStars();
+});
+
+/* ============== Audio + analyser for TV glow pulse ============== */
+let audio, audioCtx, analyser, dataArray, sourceNode, currentSong = 0;
 function createAudio(){
   audio = new Audio(songs[currentSong]);
   audio.preload = 'auto';
@@ -202,62 +230,56 @@ function playSongIndex(idx){
   audio.preload='auto'; audio.volume=0.8;
   audio.addEventListener('ended', ()=> playSongIndex(currentSong+1));
   audio.play().catch(()=>{});
-  // (re)connect analyser if context exists
   connectAnalyser();
 }
 createAudio();
 
-/* unlock audio + resume context on first gesture */
+/* Unlock audio context and playback on first gesture (autoplay rules) */
 let unlocked = false;
-async function unlockAudioAndContext(){
+async function unlockOnFirstGesture(){
   if (unlocked) return;
   unlocked = true;
-  if (!audio) createAudio();
   try { await audio.play(); } catch(e){}
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   connectAnalyser();
-  window.removeEventListener('pointerdown', unlockAudioAndContext);
-  window.removeEventListener('keydown', unlockAudioAndContext);
+  // also try to play tv video if muted
+  try { tvVideo.play().catch(()=>{}); } catch(e){}
+  window.removeEventListener('pointerdown', unlockOnFirstGesture);
+  window.removeEventListener('keydown', unlockOnFirstGesture);
 }
-window.addEventListener('pointerdown', unlockAudioAndContext, { once:true });
-window.addEventListener('keydown', unlockAudioAndContext, { once:true });
+window.addEventListener('pointerdown', unlockOnFirstGesture, { once:true });
+window.addEventListener('keydown', unlockOnFirstGesture, { once:true });
 
 function connectAnalyser(){
   try {
-    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    if (sourceNode) sourceNode.disconnect();
-    sourceNode = audioContext.createMediaElementSource(audio);
-    analyser = audioContext.createAnalyser();
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (sourceNode) try { sourceNode.disconnect(); } catch(e){}
+    sourceNode = audioCtx.createMediaElementSource(audio);
+    analyser = audioCtx.createAnalyser();
     analyser.fftSize = 512;
     const bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
     sourceNode.connect(analyser);
-    analyser.connect(audioContext.destination);
-  } catch(e){
-    // some browsers block or don't allow cross-origin audio; fallback gracefully
-    analyser = null;
-    dataArray = null;
+    analyser.connect(audioCtx.destination);
+  } catch(e) {
+    analyser = null; dataArray = null;
   }
 }
 
-/* ================= VIDEO CHANNELS ================= */
+/* ============== Video channels (preload offscreen) ============== */
 let videoEls = [];
 (function preloadVideos(){
-  for (let v of videos){
-    const el = document.createElement('video');
-    el.src = v;
-    el.muted = true; el.loop = true; el.playsInline = true; el.preload = 'auto';
-    videoEls.push(el);
+  for (let path of videos){
+    const v = document.createElement('video');
+    v.src = path;
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+    videoEls.push(v);
   }
-  // show first channel attempt
   if (videoEls[0]) { tvVideo.src = videoEls[0].src; tvVideo.play().catch(()=>{}); }
 })();
 let currentVid = 0;
 async function showChannel(i){
   currentVid = ((i % videoEls.length) + videoEls.length) % videoEls.length;
-  // bump TV-local static for the switch
   rampTvStatic(0.5, 160).then(()=>{
     tvVideo.src = videoEls[currentVid].src;
     tvVideo.play().catch(()=>{});
@@ -266,70 +288,45 @@ async function showChannel(i){
 function nextChannel(){ showChannel(currentVid + 1); }
 tv.addEventListener('click', (e)=> { e.stopPropagation(); nextChannel(); });
 
-/* ================ SVG button interactions ================ */
+/* ============== Buttons ============== */
 paintCan.addEventListener('click', async (e)=>{
   e.stopPropagation();
   if (!audio) createAudio();
-  try {
-    if (audio.paused) { await audio.play(); } else { audio.pause(); }
-  } catch(e){
-    playSongIndex(currentSong);
-  }
-  pulseElement(paintCan);
+  try { if (audio.paused) await audio.play(); else audio.pause(); } catch(e){ playSongIndex(currentSong); }
+  pulse(paintCan);
 });
 glueBottle.addEventListener('click', (e)=>{
   e.stopPropagation();
   playSongIndex(currentSong+1);
-  pulseElement(glueBottle);
+  pulse(glueBottle);
 });
-function pulseElement(el){
+function pulse(el){
   el.style.transition = 'transform 160ms ease';
   el.style.transform = 'translateY(-10px) scale(1.03)';
   setTimeout(()=> el.style.transform = '', 180);
 }
 
-/* ================= STARFIELD (canvas) ================= */
+/* ============== STARFIELD ============== */
 const sCtx = starCanvas.getContext('2d');
-let starDPR = devicePixelRatio || 1;
-function resizeCanvasFull(canvas){
-  const dpr = devicePixelRatio || 1;
-  canvas.width = Math.ceil(window.innerWidth * dpr);
-  canvas.height = Math.ceil(window.innerHeight * dpr);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-resizeCanvasFull(starCanvas);
-resizeCanvasFull(globalStatic);
-resizeCanvasFull(tvStaticCanvas);
-window.addEventListener('resize', ()=> {
-  resizeCanvasFull(starCanvas);
-  resizeCanvasFull(globalStatic);
-  resizeCanvasFull(tvStaticCanvas);
-  initStars(); // rebuild stars for new density
-});
-
-/* star data */
 let stars = [];
 function initStars(){
   const area = window.innerWidth * window.innerHeight;
-  const approx = Math.max(140, Math.min(700, Math.floor(area / 6000))); // adapt to screen
+  const count = Math.max(140, Math.min(700, Math.floor(area / 6000)));
   stars = [];
-  for (let i=0;i<approx;i++){
+  for (let i=0;i<count;i++){
     stars.push({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      z: Math.random(), // depth 0..1 (0 front)
+      z: Math.random(), // depth
       size: (Math.random() * 1.8) + 0.6,
       phase: Math.random() * Math.PI * 2,
-      twSpeed: 0.9 + Math.random() * 1.8
+      speed: 0.9 + Math.random() * 1.8
     });
   }
 }
 initStars();
 
-/* parallax state */
+/* pointer / tilt */
 let pointer = {x:0.5, y:0.5}, tilt = {x:0.5, y:0.5};
 function updatePointer(e){
   const cx = (e.clientX ?? (e.touches && e.touches[0].clientX) ?? window.innerWidth/2) / window.innerWidth;
@@ -344,115 +341,91 @@ window.addEventListener('deviceorientation', (ev)=> {
   tilt.y = (ev.beta + 180) / 360;
 }, { passive:true });
 
-/* star draw loop */
+/* draw stars */
 function drawStars(now){
   const ctx = sCtx;
-  ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+  const w = starCanvas.width / (devicePixelRatio || 1);
+  const h = starCanvas.height / (devicePixelRatio || 1);
+  ctx.clearRect(0,0,w,h);
   const cx = (pointer.x * 2 - 1) + (tilt.x - 0.5) * 0.6;
   const cy = (pointer.y * 2 - 1) + (tilt.y - 0.5) * 0.6;
   for (let s of stars){
-    // parallax offset by depth (front moves more)
     const depth = s.z;
     const ox = -cx * (1.6 - depth * 1.2) * (18 * (1 - depth));
     const oy = -cy * (1.6 - depth * 1.2) * (8 * (1 - depth));
     const x = s.x + ox;
     const y = s.y + oy;
-    // twinkle scale/alpha
-    const t = now / 1000 * s.twSpeed;
-    const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t + s.phase));
+    const t = now / 1000 * s.speed;
+    const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t + s.phase));
     const r = s.size * (0.8 + tw);
-    // color oscillation (faster for stars)
+    // hue oscillation (fast for stars)
     const hue = 210 + Math.sin(now / 300 * 3 + s.phase) * 110;
-    ctx.beginPath();
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
     grad.addColorStop(0, `hsla(${hue},95%,80%,${0.95*tw})`);
     grad.addColorStop(0.6, `hsla(${hue},80%,60%,${0.25*tw})`);
     grad.addColorStop(1, `rgba(0,0,0,0)`);
     ctx.fillStyle = grad;
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
     ctx.fill();
   }
-  requestAnimationFrame(drawStars);
 }
-requestAnimationFrame(drawStars);
 
-/* ================= GLOBAL STATIC (overlay) ================= */
+/* ============== GLOBAL STATIC (overlay) ============== */
 const gCtx = globalStatic.getContext('2d');
-let globalOffsetY = 0;
-function drawGlobalStatic(intensity=1.0){
+let globalDrift = 0;
+let lastGlobalNoise = 0;
+function drawGlobalNoise(){
   const w = globalStatic.width / (devicePixelRatio || 1);
   const h = globalStatic.height / (devicePixelRatio || 1);
-  const img = gCtx.createImageData(w, h);
+  const img = gCtx.createImageData(w,h);
   const d = img.data;
-  // noise
   for (let i=0;i<d.length;i+=4){
-    const v = Math.random() > 0.988 ? 255 : Math.floor(Math.random() * (120 * intensity));
+    const v = Math.random() > 0.989 ? 255 : Math.floor(Math.random() * 110);
     d[i]=d[i+1]=d[i+2]=v;
-    d[i+3]= 6 + Math.floor(Math.random()*10*intensity);
+    d[i+3]= 6 + Math.floor(Math.random()*10);
   }
-  gCtx.putImageData(img, 0, 0);
-  // faint vertical drift is applied visually by copying canvas with offset
+  gCtx.putImageData(img,0,0);
+  // apply upward CSS transform to simulate slow drift
 }
-let lastGlobalTick = 0;
-function animateGlobalStatic(now){
-  if (!now) now = performance.now();
-  if (now - lastGlobalTick > 90) {
-    drawGlobalStatic(1.0);
-    lastGlobalTick = now;
+function updateGlobalStatic(now){
+  if (now - lastGlobalNoise > 120) {
+    drawGlobalNoise();
+    lastGlobalNoise = now;
   }
-  // upward drift: copy the canvas with a small vertical offset to create slow rolling
-  globalOffsetY = (globalOffsetY - 0.2) % (globalStatic.height / (devicePixelRatio || 1));
-  // create a translucent overlay to achieve drift effect
-  gCtx.globalCompositeOperation = 'lighter';
-  gCtx.fillStyle = `rgba(0,0,0,0.02)`;
-  gCtx.fillRect(0,0,w,h);
-  gCtx.globalCompositeOperation = 'source-over';
-  requestAnimationFrame(animateGlobalStatic);
+  // vertical drift via CSS transform (small)
+  globalDrift = (globalDrift - 0.2) % (window.innerHeight * 0.5);
+  globalStatic.style.transform = `translateY(${globalDrift}px)`;
 }
-requestAnimationFrame(animateGlobalStatic);
 
-/* but we also render a subtle scanline overlay on top of the global static each frame */
-function drawGlobalVisual(now){
-  // small despersed "scanline" faint stripes are handled by CSS scanlines layer
-  requestAnimationFrame(drawGlobalVisual);
-}
-requestAnimationFrame(drawGlobalVisual);
-
-/* ================= TV-local static (stronger, faster) ================= */
+/* ============== TV-local static (fast, stronger) ============== */
 const tCtx = tvStaticCanvas.getContext('2d');
-function drawTvStatic(intensity=1.0){
+let lastTvNoise = 0;
+function drawTvNoise(){
   const w = tvStaticCanvas.width / (devicePixelRatio || 1);
   const h = tvStaticCanvas.height / (devicePixelRatio || 1);
   const img = tCtx.createImageData(w,h);
   const d = img.data;
   for (let i=0;i<d.length;i+=4){
-    const v = Math.random() > 0.96 ? 255 : Math.floor(Math.random() * (200 * intensity));
+    const v = Math.random() > 0.96 ? 255 : Math.floor(Math.random() * 200);
     d[i]=d[i+1]=d[i+2]=v;
-    d[i+3]= 10 + Math.floor(Math.random()*38*intensity);
+    d[i+3]= 10 + Math.floor(Math.random()*38);
   }
   tCtx.putImageData(img,0,0);
-  // occasional horizontal jitter lines
   if (Math.random() < 0.12){
-    tCtx.fillStyle = `rgba(255,255,255,${0.02 * intensity})`;
+    tCtx.fillStyle = `rgba(255,255,255,0.02)`;
     const y = Math.floor(Math.random() * h);
     tCtx.fillRect(0,y,w,1 + Math.floor(Math.random()*2));
   }
 }
-let tvStaticAnimId;
-function animateTvStatic(){
-  drawTvStatic(1.0 + Math.random() * 0.4);
-  tvStaticAnimId = requestAnimationFrame(animateTvStatic);
-}
-animateTvStatic();
 
-/* ramp function for TV static intensity used on channel switch */
+/* ramp tv static used on channel switch */
 function rampTvStatic(targetOpacity=0.45, ms=180){
+  const initial = parseFloat(tvStaticCanvas.style.opacity || 0.08);
   const start = performance.now();
-  const initial = tvStaticCanvas.style.opacity ? parseFloat(tvStaticCanvas.style.opacity) : 0.08;
-  tvStaticCanvas.style.opacity = initial;
   return new Promise(res=>{
     function step(t){
-      const p = Math.min(1,(t-start)/ms);
+      const p = Math.min(1,(t - start)/ms);
       const eased = p < 0.5 ? (2*p*p) : (-1 + (4 - 2*p)*p);
       tvStaticCanvas.style.opacity = initial + (targetOpacity - initial) * eased;
       if (p < 1) requestAnimationFrame(step);
@@ -464,29 +437,20 @@ function rampTvStatic(targetOpacity=0.45, ms=180){
   });
 }
 
-/* ================== PARALLAX for SVGs + TV ================== */
-function updateParallax(){
+/* ============== Parallax & SVG movement ============== */
+function updateParallax(now){
   const cx = (pointer.x * 2 - 1) + (tilt.x - 0.5) * 0.6;
   const cy = (pointer.y * 2 - 1) + (tilt.y - 0.5) * 0.6;
-  // svg moves slightly slower than stars for depth
-  const sx = cx * -8;
-  const sy = cy * -10;
-  const gx = cx * 8;
-  const gy = cy * 10;
-  const tvrx = cx * 1.2;
-  const tvry = cy * 0.6;
+  const sx = cx * -8; const sy = cy * -10;
+  const gx = cx * 8; const gy = cy * 10;
   paintCan.style.transform = `translate3d(${sx}px, ${sy}px, 0)`;
   glueBottle.style.transform = `translate3d(${gx}px, ${gy}px, 0)`;
-  tv.style.transform = `translateZ(40px) rotateX(${1.2 - cy * 0.6}deg) rotateY(${tx = cx * 1.2}deg)`;
-  requestAnimationFrame(updateParallax);
+  tv.style.transform = `translateZ(40px) rotateX(${1.2 - cy * 0.6}deg) rotateY(${cx * 1.2}deg)`;
 }
-requestAnimationFrame(updateParallax);
 
-/* ================= COLOR OSCILLATION (SVGs opposite phase) ================ */
+/* ============== Color oscillation (SVGs opposite phase) ============== */
 const svgPhaseOffset = Math.PI;
-function colorOscillate(now){
-  now = now || performance.now();
-  // stars already use a faster hue in star drawing. Here we set the svg hues slower.
+function updateSvgColors(now){
   const t = now / 2200;
   const paintHue = 210 + Math.sin(t * 0.75) * 110;
   const glueHue = 210 + Math.sin(t * 0.75 + svgPhaseOffset) * 110;
@@ -494,25 +458,9 @@ function colorOscillate(now){
   paintCan.style.setProperty('--c2', `hsl(${(paintHue+40)%360} 95% 45% / 0.85)`);
   glueBottle.style.setProperty('--c1', `hsl(${glueHue} 95% 65% / 0.95)`);
   glueBottle.style.setProperty('--c2', `hsl(${(glueHue+40)%360} 95% 45% / 0.85)`);
-  requestAnimationFrame(colorOscillate);
 }
-requestAnimationFrame(colorOscillate);
 
-/* ================= CRT "smack" glitch scheduling ================= */
-function scheduleSmack(){
-  const delay = 45000 + Math.random() * 45000; // 45-90s
-  setTimeout(()=> { doSmack(); scheduleSmack(); }, delay);
-}
-function doSmack(){
-  stage.classList.add('glitch');
-  // bump tv-local static & global static briefly
-  rampTvStatic(0.6, 120).catch(()=>{});
-  // stage wobble length
-  setTimeout(()=> stage.classList.remove('glitch'), 420 + Math.random() * 200);
-}
-scheduleSmack();
-
-/* ================ TV glow pulsing to music via analyser =============== */
+/* ============== TV glow from audio analyser ============== */
 function updateTvGlow(){
   let level = 0;
   if (analyser && dataArray){
@@ -522,18 +470,72 @@ function updateTvGlow(){
       const v = dataArray[i] - 128;
       sum += v * v;
     }
-    const rms = Math.sqrt(sum / dataArray.length) / 128; // 0..~1
+    const rms = Math.sqrt(sum / dataArray.length) / 128;
     level = Math.min(1.6, 0.2 + rms * 2.4);
   } else {
-    // fallback breathing animation if analyzer unavailable
     level = 1 + 0.12 * (1 + Math.sin(performance.now() / 800));
   }
-  document.documentElement.style.setProperty('--tv-glow-level', level.toString());
-  requestAnimationFrame(updateTvGlow);
+  document.documentElement.style.setProperty('--tv-glow-level', String(level));
 }
-requestAnimationFrame(updateTvGlow);
 
-/* ============== small keyboard + cleanup ================ */
+/* ============== Unified animation loop ============== */
+let lastTvNoiseTime = 0;
+function animate(now){
+  // stars
+  drawStars(now);
+  // global static (draw less often)
+  updateGlobalStatic(now);
+  // tv static draw faster
+  if (!lastTvNoiseTime || (now - lastTvNoiseTime) > 60) {
+    drawTvNoise();
+    lastTvNoiseTime = now;
+  }
+  // parallax & colors & glow
+  updateParallax(now);
+  updateSvgColors(now);
+  updateTvGlow();
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+/* ============== CRT "smack" glitch scheduling ============== */
+function scheduleSmack(){
+  const delay = 45000 + Math.random() * 45000; // 45-90s
+  setTimeout(()=> { doSmack(); scheduleSmack(); }, delay);
+}
+function doSmack(){
+  stage.classList.add('glitch');
+  rampTvStatic(0.6, 120).catch(()=>{});
+  setTimeout(()=> stage.classList.remove('glitch'), 420 + Math.random() * 200);
+}
+scheduleSmack();
+
+/* ============== keyboard & cleanup ============== */
 window.addEventListener('keydown', (e)=>{
   if (e.key === 'n' || e.key === 'N') { playSongIndex(currentSong+1); }
-  if (e.ke
+  if (e.key === ' ') { e.preventDefault(); nextChannel(); }
+});
+window.addEventListener('pagehide', ()=> {
+  try { audio && audio.pause(); } catch(e){}
+});
+
+/* ============== Helper functions ============== */
+/* Swap channel helper used earlier */
+function nextChannel(){ showChannel(currentVid + 1); }
+
+/* Ensure tv-local canvas is sized to tv element */
+function ensureTvCanvasSize(){ resizeTvCanvas(); }
+window.addEventListener('resize', ensureTvCanvasSize);
+
+/* Re-init stars when needed */
+let resizeTimeout;
+window.addEventListener('resize', ()=> {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(()=> { initStars(); }, 300);
+});
+
+/* ================== Done ================== */
+/* If autoplay blocked, tap/click once to unlock audio+video and start analyser-driven glow */
+</script>
+</body>
+</html>
