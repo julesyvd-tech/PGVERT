@@ -1,123 +1,86 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>PGVERT</title>
-
+<meta property="og:title" content="PGVERT" />
+<meta name="description" content="Paint + Glue VERT — VHS fusion with interactive TV & music" />
 <style>
-/* === BASE VISUALS FROM ORIGINAL SITE === */
 html,body{
   margin:0;
-  padding:0;
-  width:100%;
   height:100%;
   background:radial-gradient(circle at center,#000010 0%,#000 100%);
-  overflow:hidden;
   color:#fff;
   font-family:'Courier New',monospace;
+  overflow:hidden;
 }
 
-/* starfield + vhs haze */
+/* starfield + global vhs flicker */
 body::before,body::after{
   content:"";
-  position:fixed;
-  inset:0;
-  z-index:-2;
+  position:fixed;inset:0;
   background:
     radial-gradient(white 1px,transparent 1px) 0 0/3px 3px,
     radial-gradient(rgba(255,255,255,.2) 1px,transparent 1px) 1.5px 1.5px/3px 3px;
-  opacity:.05;
-  animation:twinkle 4s linear infinite;
+  opacity:.05;animation:twinkle 4s linear infinite;
+  z-index:-2;
 }
-@keyframes twinkle{
-  0%,100%{opacity:.05;}
-  50%{opacity:.1;}
-}
+@keyframes twinkle{0%,100%{opacity:.05;}50%{opacity:.1;}}
 
-/* scanline overlay */
 .scanlines{
-  position:fixed;
-  inset:0;
-  z-index:2;
-  background:repeating-linear-gradient(
-    to bottom,
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(to bottom,
     rgba(255,255,255,0.03) 0px,
     rgba(0,0,0,0.07) 1px,
-    transparent 2px
-  );
-  pointer-events:none;
-  mix-blend-mode:overlay;
+    transparent 2px);
+  mix-blend-mode:overlay;pointer-events:none;z-index:3;
 }
 
-/* container for main scene */
+/* center scene */
 .main{
-  position:relative;
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
+  position:relative;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
 }
 
-/* glowing SVG buttons */
+/* glowing SVG controls */
 .svg-controls{
-  position:fixed;
-  top:5%;
-  left:50%;
-  transform:translateX(-50%);
-  display:flex;
-  gap:24px;
-  z-index:10;
+  position:fixed;top:5%;left:50%;transform:translateX(-50%);
+  display:flex;gap:24px;z-index:10;
 }
 .svg-controls svg{
   filter:drop-shadow(0 0 8px #ff66ff);
-  cursor:pointer;
-  transition:transform .2s ease;
+  cursor:pointer;transition:transform .2s ease;
 }
-.svg-controls svg:hover{
-  transform:translateY(-2px) scale(1.03);
-}
+.svg-controls svg:hover{transform:translateY(-2px) scale(1.03);}
 
-/* tv placeholder bottom center */
-#tvContainer{
-  position:fixed;
-  bottom:40px;
-  left:50%;
-  transform:translateX(-50%);
-  width:280px;
-  height:160px;
-  background:#111;
-  border-radius:6px;
-  overflow:hidden;
-  box-shadow:0 0 20px rgba(255,100,255,0.5);
-  z-index:5;
-}
-
-/* static glitch overlay for tv */
-#tvStatic{
-  position:absolute;
-  inset:0;
-  background:#000;
-  opacity:0;
-  pointer-events:none;
-  z-index:6;
-}
-
-/* glowing logo text (PG) behind everything */
+/* glowing logo text behind */
 .logo{
-  position:absolute;
-  top:50%;
-  left:50%;
+  position:absolute;top:50%;left:50%;
   transform:translate(-50%,-50%);
   font-size:clamp(40px,10vw,160px);
-  font-weight:bold;
-  color:#fff;
-  letter-spacing:.15em;
-  text-shadow:0 0 10px #ff66ff,0 0 20px #ff66ff;
-  mix-blend-mode:screen;
-  opacity:.8;
+  font-weight:bold;letter-spacing:.15em;
+  color:#fff;text-shadow:0 0 10px #ff66ff,0 0 20px #ff66ff;
+  mix-blend-mode:screen;opacity:.8;
+}
+
+/* TV container */
+#tvContainer{
+  position:fixed;bottom:40px;left:50%;
+  transform:translateX(-50%);
+  width:280px;height:160px;
+  background:#111;border-radius:6px;overflow:hidden;
+  box-shadow:0 0 24px rgba(255,100,255,0.6);
+  z-index:5;
+}
+#tvVideo{width:100%;height:100%;object-fit:cover;}
+#tvStatic{
+  position:absolute;inset:0;
+  background:#000;opacity:0;pointer-events:none;z-index:6;
+}
+#tvNoise{
+  position:absolute;inset:0;pointer-events:none;
+  opacity:.08;mix-blend-mode:screen;z-index:7;
 }
 </style>
 </head>
@@ -125,15 +88,15 @@ body::before,body::after{
 <div class="scanlines"></div>
 <div class="main">
   <div class="logo">P G</div>
-  <!-- === Paint & Glue SVG Controls === -->
+
+  <!-- Paint + Glue SVG Controls -->
   <div class="svg-controls">
-    <!-- Paint Can = Play / Pause -->
+    <!-- Paint Can = Play/Pause -->
     <svg id="paintCan" width="60" height="60" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
       <rect x="14" y="22" width="36" height="30" rx="6" ry="6" fill="rgba(255,255,255,0.05)" />
       <path d="M20 22v-4a12 12 0 0 1 24 0v4" />
       <circle cx="32" cy="37" r="8" fill="rgba(255,255,255,0.1)" />
     </svg>
-
     <!-- Glue Bottle = Next Track -->
     <svg id="glueBottle" width="48" height="48" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2">
       <polygon points="24,18 40,18 38,58 26,58" fill="rgba(255,255,255,0.05)" />
@@ -142,14 +105,13 @@ body::before,body::after{
     </svg>
   </div>
 
-  <!-- === TV Element (bottom-center) === -->
+  <!-- TV Element -->
   <div id="tvContainer">
     <video id="tvVideo" autoplay muted loop playsinline></video>
     <canvas id="tvStatic"></canvas>
+    <canvas id="tvNoise"></canvas>
   </div>
-</div> <!-- closes .main -->
-
-<!-- script section will follow in chunk 3 -->
+</div>
 <script>
 /* === FILE LISTS === */
 const songs = [
@@ -181,18 +143,17 @@ function nextSong(){
   playSong(currentSong + 1);
   pulse(glueBottle);
 }
-audio.addEventListener("ended", ()=>nextSong());
+audio.addEventListener("ended",()=>nextSong());
 
-/* attempt autoplay after 1 s, fallback to paint-can click */
+/* autoplay attempt after 1s, else wait for paintCan click */
 setTimeout(()=>audio.play().catch(()=>{}),1000);
 
-/* === SVG CONTROLS === */
 const paintCan = document.getElementById("paintCan");
 const glueBottle = document.getElementById("glueBottle");
 
 paintCan.addEventListener("click",()=>{
-  if(audio.paused){ audio.play().catch(()=>{}); }
-  else{ audio.pause(); }
+  if(audio.paused){audio.play().catch(()=>{});}
+  else{audio.pause();}
   pulse(paintCan);
 });
 glueBottle.addEventListener("click",()=>nextSong());
@@ -205,6 +166,7 @@ function pulse(el){
 /* === TV HANDLING === */
 const tv = document.getElementById("tvVideo");
 const tvStatic = document.getElementById("tvStatic");
+const tvNoise = document.getElementById("tvNoise");
 let currentVid = 0;
 
 function loadVideo(i){
@@ -215,32 +177,29 @@ function loadVideo(i){
 function nextVideo(){
   showStatic(500).then(()=>loadVideo(currentVid + 1));
 }
-
-/* loop + click to change channel */
 tv.loop = true;
 tv.muted = true;
 loadVideo(0);
 tv.addEventListener("click",()=>nextVideo());
 
 /* === STATIC EFFECT === */
-tvStatic.width = tv.clientWidth;
-tvStatic.height = tv.clientHeight;
-const ctx = tvStatic.getContext("2d");
+tvStatic.width = 280; tvStatic.height = 160;
+const sctx = tvStatic.getContext("2d");
 function showStatic(ms){
   return new Promise(res=>{
     tvStatic.style.opacity="1";
-    let frames = 0;
+    let f=0;
     function draw(){
-      const img = ctx.createImageData(tvStatic.width,tvStatic.height);
-      const d = img.data;
+      const img=sctx.createImageData(tvStatic.width,tvStatic.height);
+      const d=img.data;
       for(let i=0;i<d.length;i+=4){
-        const v = Math.random()*255;
+        const v=Math.random()*255;
         d[i]=d[i+1]=d[i+2]=v;
         d[i+3]=255;
       }
-      ctx.putImageData(img,0,0);
-      frames++;
-      if(frames<Math.floor(ms/30)) requestAnimationFrame(draw);
+      sctx.putImageData(img,0,0);
+      f++;
+      if(f<Math.floor(ms/30)) requestAnimationFrame(draw);
       else{
         tvStatic.style.opacity="0";
         res();
@@ -250,11 +209,27 @@ function showStatic(ms){
   });
 }
 
-/* === RANDOM GLITCH PULSES === */
+/* === VHS NOISE OVERLAY === */
+tvNoise.width = 280; tvNoise.height = 160;
+const nctx = tvNoise.getContext("2d");
+function drawNoise(){
+  const img = nctx.createImageData(tvNoise.width, tvNoise.height);
+  const d = img.data;
+  for(let i=0;i<d.length;i+=4){
+    const v = Math.random()*255;
+    d[i]=d[i+1]=d[i+2]=v;
+    d[i+3]=40+Math.random()*40; // subtle transparency
+  }
+  nctx.putImageData(img,0,0);
+}
+setInterval(drawNoise,60);
+
+/* === RANDOM GLOW PULSE === */
+const tvContainer = document.getElementById("tvContainer");
 setInterval(()=>{
-  if(Math.random()<0.1){
-    tvContainer.style.boxShadow="0 0 30px rgba(255,100,255,0.9)";
-    setTimeout(()=>tvContainer.style.boxShadow="0 0 20px rgba(255,100,255,0.5)",150);
+  if(Math.random()<0.12){
+    tvContainer.style.boxShadow="0 0 36px rgba(255,100,255,0.9)";
+    setTimeout(()=>tvContainer.style.boxShadow="0 0 24px rgba(255,100,255,0.6)",150);
   }
 },2000);
 </script>
